@@ -1,0 +1,49 @@
+Statements are parsed and compiled immediately, with statements separated by
+newlines and possibly other symbols like commas, semicolons or colons.
+
+Control flow structures and definitions end before the next non-empty line
+with the same or less indentation, or at the end of the file.
+
+Function definitions are stored in the code area, possibly a linked list of
+names and routines.
+
+Compilation occurs on the compilation stack, a bottom-up stack whose frames
+contain position-independent code that is copied into function definitions
+when it is complete, or discarded if incomplete or invalid.
+
+Arguments to functions, temporary values and return values are stored on the
+value stack.
+
+The systems call stack is used for compiled code.
+
+Example code
+------------
+
+def factorial x
+    if x == 0
+        return 1
+    else
+        return x * factorial(x - 1)
+
+The "def" keyword starts compilation of a function with the name and
+arguments specified before the first newline. The definition ends at the
+position in the file described above.
+
+The function name could be temporarily added to the module/global dictionary
+when it is first encountered, allowing the definition to contain references
+to itself. However, this would not allow mutually recursive functions to be
+defined, so perhaps introducing a placeholder for unresolved function calls
+could be an alternative mechanism for both types of recursion.
+
+As "if" and "else" keywords are encountered, control passes to handler
+functions that compile code for these control flow structures.
+
+Variable references or constants are compiled to code that loads the
+relevant value onto the value stack.
+
+As operators, such as "==", are encountered, control passes to handler
+functions that parse the required number of additional arguments, compiling
+code to handle them and produce a result. When used as part of a control flow
+block, the handler function for the surrounding statement will generate code
+to handle the result.
+
