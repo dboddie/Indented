@@ -55,6 +55,7 @@ def compare_equals(value):
 defs = [("if", compile_if), ("==", compile_equals)]
 code_area = []
 value_stack = []
+indent_stack = [0]
 
 # Compiler/interpreter internals
 
@@ -62,6 +63,8 @@ newline = False
 indent = 0
 pending_token = ""
 
+indent_token = "\ti"
+dedent_token = "\td"
 
 # Parsing/compilation functions
 
@@ -71,33 +74,47 @@ def add_def(token):
 
 def read_token(stream):
 
-    global indent, newline, pending_token
+    global last_indent, indent, newline, pending_token
     
-    if newline == True:
-        indent = 0
-    
-    newline = False
+    if not newline and indent < indent_stack[-1]:
+        indent_stack.pop()
+        return dedent_token
     
     if pending_token:
         token = pending_token
         pending_token = ""
-        indent += len(pending_token) + 1
-        return token
-    
-    token = ""
+    else:
+        token = ""
     
     while True:
     
         ch = stream.read(1)
-        indent += 1
         
         if ch == " ":
-            break
+            if newline:
+                indent += 1
+            if token:
+                break
         elif ch == "\n":
+            indent = 0
             newline = True
             break
-        
-        token += ch
+        else:
+            if newline:
+                newline = False
+                
+                if indent > indent_stack[-1]:
+                    # Emit an indent token and keep the character for later.
+                    pending_token = ch
+                    indent_stack.append(indent)
+                    return indent_token
+                elif indent < indent_stack[-1]:
+                    # Emit an dedent token and keep the character for later.
+                    pending_token = ch
+                    indent_stack.pop()
+                    return dedent_token
+            
+            token += ch
     
     return token
 
@@ -164,7 +181,7 @@ def compile_constant(token):
 
     code_area.append((load_constant, int(token)))
 
-# Executation of code
+# Execution of code
 
 def execute():
 
