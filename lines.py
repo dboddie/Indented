@@ -6,9 +6,6 @@ import sys
 
 def compile_def(stream):
 
-    # Record the indentation level of the def keyword.
-    ind = indent - 4
-    
     # Read the definition's name.
     name = read_token(stream)
     
@@ -18,36 +15,47 @@ def compile_def(stream):
 
 def compile_if(stream):
 
-    # Record the indentation level of the if keyword.
-    ind = indent - 3
-    
     # Compile the condition.
-    compile_line_tokens(stream, ind + 1)
+    compile_line_tokens(stream)
     
     # Insert a branch instruction placeholder.
-    code_area.append("branch if false to")
+    code_area.append(("branch if false to", None))
+    
+    # Expect an indentation token.
+    if read_token(stream) != indent_token:
+        raise SyntaxError, "Expected indentation before body of structure."
     
     # Compile the body of the structure.
-    while indent > ind:
-        compile_line_tokens(stream, ind + 1)
+    while True:
+        token = read_token(stream)
+        if token == dedent_token:
+            break
+        compile_token(token)
+    
+    code_area.append(("endif label", None))
 
 def compile_equals(stream):
 
-    # Record the indentation level.
-    ind = indent - 3
+    # Compile the second argument to the comparison.
+    token = read_token(stream)
+    if not compile_token(token):
+        raise SyntaxError, "Missing second argument to operator."
     
-    compile_token(stream, ind + 1)
     code_area.append((compare_equals, None))
 
 # Built-in run-time functions
 
-def load_constant(value):
+def load_number(value):
 
     value_stack.append(value)
 
 def compare_equals(value):
 
     return value_stack.pop() == value_stack.pop()
+
+def load_string(value):
+
+    value_stack.append(value)
 
 
 # Environment workspace
@@ -62,9 +70,13 @@ indent_stack = [0]
 newline = False
 indent = 0
 pending_token = ""
+in_comment = False
+in_string = False
+at_eof = False
 
 indent_token = "\ti"
 dedent_token = "\td"
+newline_token = "\n"
 
 # Parsing/compilation functions
 
@@ -74,33 +86,84 @@ def add_def(token):
 
 def read_token(stream):
 
-    global last_indent, indent, newline, pending_token
+    global at_eof, indent, indent_stack, in_comment, in_string, newline
+    global pending_token
     
+    # If at the end of the file then emit dedent tokens until the indentation
+    # level is zero, then emit newline tokens.
+    if at_eof:
+        if indent < indent_stack[-1]:
+            indent_stack.pop()
+            return dedent_token
+        else:
+            return newline_token
+    
+    # If we have encountered tokens and the indentation level is less than
+    # previously then emit a dedent token.
     if not newline and indent < indent_stack[-1]:
         indent_stack.pop()
         return dedent_token
     
+    # If there is (the start of) a pending token then use this as the basis for
+    # the next token.
     if pending_token:
         token = pending_token
         pending_token = ""
     else:
         token = ""
     
+    # If the token is a newline then emit this immediately.
+    if token == newline_token:
+        return token
+    
     while True:
     
         ch = stream.read(1)
         
-        if ch == " ":
+        if not ch:
+            # At the end of a file, set a flag and start emitting dedent tokens
+            # unless the indentation is already zero.
+            at_eof = True
+            if indent > 0:
+                indent_stack.pop()
+                return dedent_token
+            else:
+                return newline_token
+        elif ch == " ":
+            # Spaces separate tokens unless in a string. Emit the current token
+            # if already started; otherwise continue reading.
             if newline:
                 indent += 1
-            if token:
+            elif in_string or in_comment:
+                token += ch
+            elif token:
                 break
         elif ch == "\n":
+            # Newlines reset the indentation level and end comments and
+            # strings. Emit any current token and queue a newline token, or
+            # just emit the newline token if there is no current token.
             indent = 0
             newline = True
-            break
+            in_comment = False
+            in_string = False
+            if token:
+                pending_token = newline_token
+                break
+            else:
+                return newline_token
         else:
+            # Any non-whitespace characters are treated separately.
+            
+            # Test for comments and the beginnings and ends of strings.
+            if ch == "#":
+                in_comment = True
+            elif ch == '"':
+                in_string = not in_string
+            
             if newline:
+                # For the first token on a new line, ensure that the
+                # appropriate indent and dedent tokens are emitted and queue
+                # the latest character read as the beginning of a new token.
                 newline = False
                 
                 if indent > indent_stack[-1]:
@@ -114,37 +177,46 @@ def read_token(stream):
                     indent_stack.pop()
                     return dedent_token
             
+            # Extend the current token with the new character.
             token += ch
     
     return token
 
-def compile_line_tokens(stream, min_indent):
+def compile_line_tokens(stream):
 
     "Compiles tokens until the end of the line."
     
-    while newline == False:
-        compile_token(stream, min_indent)
+    while True:
+        token = read_token(stream)
+        if token == newline_token:
+            break
+        if not compile_token(token):
+            raise SyntaxError, "Unexpected token: %s" % repr(token)
 
-def compile_token(stream, min_indent):
+def compile_token(token):
 
-    global indent, pending_token
-    
-    token = read_token(stream)
     if not token:
-        return
+        return False
     
-    print min_indent, indent - len(token) - 1, token
-    if indent - len(token) - 1 < min_indent:
+    if token == dedent_token:
         # If the token is not indented sufficiently then it is part of another
-        # control flow struction, so we do not compile it but store it for
-        # later processing.
-        pending_token = token
-        indent -= len(token) + 1
-        return
+        # control flow structure.
+        return False
     
-    if is_constant(token):
-        compile_constant(token)
-        return
+    if token == newline_token:
+        # End the current statement. An incomplete statement is a syntax error.
+        return False
+    
+    if is_number(token):
+        compile_number(token)
+        return True
+    
+    if is_string(token):
+        compile_string(token)
+        return True
+    
+    if token.startswith("#"):
+        return True
     
     i = 0
     while i < len(defs):
@@ -152,15 +224,15 @@ def compile_token(stream, min_indent):
         name, compile_fn = defs[i]
         if token == name:
             compile_fn(stream)
-            return
+            return True
         
         i += 1
     
-    raise ValueError, repr(token)
+    raise SyntaxError, repr(token)
 
 # Constant handling
 
-def is_constant(token):
+def is_number(token):
 
     if token[0] == "-":
         if len(token) == 1:
@@ -177,9 +249,18 @@ def is_constant(token):
     
     return True
 
-def compile_constant(token):
+def compile_number(token):
 
-    code_area.append((load_constant, int(token)))
+    code_area.append((load_number, int(token)))
+
+def is_string(token):
+
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        return True
+
+def compile_string(token):
+
+    code_area.append((load_string, token[1:-1]))
 
 # Execution of code
 
@@ -210,6 +291,7 @@ if __name__ == "__main__":
         stream = sys.stdin
     
     while True:
-        compile_token(stream, 0)
+        token = read_token(stream)
+        compile_token(token)
         if newline:
             execute()
