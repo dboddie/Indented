@@ -2,6 +2,22 @@
 
 import sys
 
+# Compiler/interpreter internals
+
+newline = False
+indent = 0
+indent_stack = [0]
+pending_token = ""
+in_comment = False
+in_string = False
+at_eof = False
+last_type = None
+
+indent_token = "\ti"
+dedent_token = "\td"
+newline_token = "\n"
+assignment_token = "="
+
 # Built-in compilation functions
 
 def compile_def(stream):
@@ -49,6 +65,37 @@ def compile_equals(stream):
     
     code_area.append((compare_equals, None))
 
+def compile_assign(stream):
+
+    print "assign"
+    token = read_token(stream)
+    return compile_token(token)
+
+def compile_unknown(token, stream):
+
+    global var_stack
+    
+    # Read the next token and check whether it is an assignment operator.
+    next_token = read_token(stream)
+    
+    if next_token != assignment_token:
+        raise SyntaxError, "Undefined object: %s" % token
+    
+    # Compile code to define an object with the name given by the token.
+    if not compile_token(assignment_token):
+        raise SyntaxError, "Invalid assignment to %s" % token
+    
+    i = len(var_stack) - 1
+    while i >= 0:
+        name, size = var_stack[i]
+        if name == token:
+            break
+        elif name is None:
+            # Ensure that there is enough space reserved for this variable.
+            var_stack.append((token, data_size()))
+    
+    return True
+
 # Built-in run-time functions
 
 def load_number(value):
@@ -79,24 +126,16 @@ def branch_if_false(value):
 
 # Environment workspace
 
-defs = [("if", compile_if), ("==", compile_equals)]
+# Global definitions
+defs = [("if", compile_if), ("==", compile_equals), ("=", compile_assign)]
+# Code compilation workspace and offset into code
 code_area = []
-value_stack = []
-indent_stack = [0]
 code_offset = 0
-
-# Compiler/interpreter internals
-
-newline = False
-indent = 0
-pending_token = ""
-in_comment = False
-in_string = False
-at_eof = False
-
-indent_token = "\ti"
-dedent_token = "\td"
-newline_token = "\n"
+# Run-time value handling
+value_stack = []
+# Local variable stack, for run-time variable storage, but also compile-time
+# indexing of variables
+var_stack = []
 
 # Parsing/compilation functions
 
@@ -238,15 +277,19 @@ def compile_token(token):
     if token.startswith("#"):
         return True
     
-    i = 0
-    while i < len(defs):
+    i = len(defs) - 1
+    while i >= 0:
     
         name, compile_fn = defs[i]
         if token == name:
             compile_fn(stream)
             return True
         
-        i += 1
+        i -= 1
+    
+    # Try to interpret the unknown token as the start of a definition.
+    if compile_unknown(token, stream):
+        return True
     
     raise SyntaxError, repr(token)
 
@@ -281,6 +324,15 @@ def is_string(token):
 def compile_string(token):
 
     code_area.append((load_string, token[1:-1]))
+
+def data_size():
+
+    if code_area[-1][0] == load_number:
+        return 4
+    elif code_area[-1][0] == load_string:
+        return len(code_area[-1][1])
+    else:
+        raise SyntaxError, "Unknown data size."
 
 # Execution of code
 

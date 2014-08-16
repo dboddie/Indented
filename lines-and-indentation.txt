@@ -1,3 +1,6 @@
+Overview
+--------
+
 Statements are parsed and compiled immediately, with statements separated by
 newlines and possibly other symbols like commas, semicolons or colons.
 
@@ -14,10 +17,17 @@ when it is complete, or discarded if incomplete or invalid.
 Arguments to functions, temporary values and return values are stored on the
 value stack.
 
-The systems call stack is used for compiled code.
+The system's call stack is used for return addresses in compiled code.
 
-Example code
-------------
+A variable stack will hold local variables. The sizes of these are determined
+and recorded during the compilation of each function so that code to allocate
+and free space can be compiled in the body of the function.
+
+Initially, the grammar will be loosely defined, allowing both valid and invalid
+syntax to some extent.
+
+Example code (function definition)
+----------------------------------
 
 def factorial x
     if x == 0
@@ -46,4 +56,13 @@ functions that parse the required number of additional arguments, compiling
 code to handle them and produce a result. When used as part of a control flow
 block, the handler function for the surrounding statement will generate code
 to handle the result.
+
+Example code (variable definition)
+----------------------------------
+
+x = 0
+
+When the "x" name is encountered, it is initially undefined. This would be an
+error if we were trying to use its value, but we are defining it. This means
+that it must be immediately followed by an assignment operator.
 
