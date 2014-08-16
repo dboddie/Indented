@@ -18,8 +18,11 @@ def compile_if(stream):
     # Compile the condition.
     compile_line_tokens(stream)
     
+    # Save the code area offset for later.
+    branch_instruction_address = len(code_area)
+    
     # Insert a branch instruction placeholder.
-    code_area.append(("branch if false to", None))
+    code_area.append((branch_if_false, None))
     
     # Expect an indentation token.
     if read_token(stream) != indent_token:
@@ -32,7 +35,10 @@ def compile_if(stream):
             break
         compile_token(token)
     
-    code_area.append(("endif label", None))
+    # Replace the placeholder instruction stored earlier with a branch
+    # instruction.
+    offset = len(code_area) - branch_instruction_address
+    code_area[branch_instruction_address] = (branch_if_false, offset)
 
 def compile_equals(stream):
 
@@ -47,16 +53,29 @@ def compile_equals(stream):
 
 def load_number(value):
 
+    global code_offset
     value_stack.append(value)
+    code_offset += 1
 
 def compare_equals(value):
 
-    return value_stack.pop() == value_stack.pop()
+    global code_offset
+    code_offset += 1
+    value_stack.append(value_stack.pop() == value_stack.pop())
 
 def load_string(value):
 
+    global code_offset
     value_stack.append(value)
+    code_offset += 1
 
+def branch_if_false(value):
+
+    global code_offset
+    if not value_stack.pop():
+        code_offset += value
+    else:
+        code_offset += 1
 
 # Environment workspace
 
@@ -64,6 +83,7 @@ defs = [("if", compile_if), ("==", compile_equals)]
 code_area = []
 value_stack = []
 indent_stack = [0]
+code_offset = 0
 
 # Compiler/interpreter internals
 
@@ -267,10 +287,14 @@ def compile_string(token):
 def execute():
 
     "Execute the code in the temporary code area."
-    global code_area, value_stack
+    global code_area, code_offset, value_stack
     
-    for instruction, operand in code_area:
-        print instruction, operand, "->", instruction(operand)
+    code_offset = 0
+    while code_offset < len(code_area):
+        instruction, operand = code_area[code_offset]
+        print instruction, operand, "->",
+        instruction(operand)
+        print value_stack
     
     code_area = []
     value_stack = []
@@ -290,7 +314,7 @@ if __name__ == "__main__":
     else:
         stream = sys.stdin
     
-    while True:
+    while not at_eof:
         token = read_token(stream)
         compile_token(token)
         if newline:
