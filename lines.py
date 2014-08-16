@@ -11,7 +11,7 @@ pending_token = ""
 in_comment = False
 in_string = False
 at_eof = False
-last_type = None
+pending_operands = 0
 
 indent_token = "\ti"
 dedent_token = "\td"
@@ -20,16 +20,47 @@ assignment_token = "="
 
 # Built-in compilation functions
 
-def compile_def(stream):
+def compile_def(stream, expected_parameters):
 
     # Read the definition's name.
     name = read_token(stream)
     
+    i = find_def(name)
+    if i != -1:
+        raise SyntaxError, "Definition already exists: %s" % token
+    
     # Read the names of the parameters.
+    parameters = []
     while newline == False:
-        read_token(stream)
+        token = read_token(stream)
+        parameters.append(token)
+    
+    # Skip newlines.
+    while True:
+        token = read_token(stream)
+        if token != newline_token:
+            break
+    
+    # Expect an indentation token.
+    if token != indent_token:
+        raise SyntaxError, "Expected indentation before body of structure."
+    
+    # Compile the body of the structure.
+    while True:
+        token = read_token(stream)
+        if token == dedent_token:
+            break
+        compile_token(token)
+    
+    defs.append((name, compile_call, parameters))
 
-def compile_if(stream):
+def compile_call(stream, expected_parameters):
+
+    for parameter in expected_parameters:
+        token = read_token(stream)
+        compile_token(token)
+
+def compile_if(stream, expected_parameters):
 
     # Compile the condition.
     compile_line_tokens(stream)
@@ -56,8 +87,14 @@ def compile_if(stream):
     offset = len(code_area) - branch_instruction_address
     code_area[branch_instruction_address] = (branch_if_false, offset)
 
-def compile_equals(stream):
+def compile_equals(stream, expected_parameters):
 
+    global pending_operands
+    if pending_operands != 1:
+        raise SyntaxError, "Unexpected number of arguments to operator."
+    
+    pending_operands -= 1
+    
     # Compile the second argument to the comparison.
     token = read_token(stream)
     if not compile_token(token):
@@ -65,7 +102,7 @@ def compile_equals(stream):
     
     code_area.append((compare_equals, None))
 
-def compile_assign(stream):
+def compile_assign(stream, expected_parameters):
 
     print "assign"
     token = read_token(stream)
@@ -94,6 +131,7 @@ def compile_unknown(token, stream):
             # Ensure that there is enough space reserved for this variable.
             var_stack.append((token, data_size()))
     
+    print var_stack
     return True
 
 # Built-in run-time functions
@@ -127,7 +165,8 @@ def branch_if_false(value):
 # Environment workspace
 
 # Global definitions
-defs = [("if", compile_if), ("==", compile_equals), ("=", compile_assign)]
+defs = [("if", compile_if, []), ("==", compile_equals, []),
+        ("=", compile_assign, []), ("def", compile_def, [])]
 # Code compilation workspace and offset into code
 code_area = []
 code_offset = 0
@@ -142,6 +181,19 @@ var_stack = []
 def add_def(token):
 
     defs.append(token)
+
+def find_def(token):
+
+    i = len(defs) - 1
+    while i >= 0:
+    
+        name, compile_fn, expected_parameters = defs[i]
+        if token == name:
+            return i
+        
+        i -= 1
+    
+    return -1
 
 def read_token(stream):
 
@@ -254,6 +306,8 @@ def compile_line_tokens(stream):
 
 def compile_token(token):
 
+    global pending_operands
+    
     if not token:
         return False
     
@@ -264,6 +318,7 @@ def compile_token(token):
     
     if token == newline_token:
         # End the current statement. An incomplete statement is a syntax error.
+        pending_operands = 0
         return False
     
     if is_number(token):
@@ -277,15 +332,11 @@ def compile_token(token):
     if token.startswith("#"):
         return True
     
-    i = len(defs) - 1
-    while i >= 0:
-    
-        name, compile_fn = defs[i]
-        if token == name:
-            compile_fn(stream)
-            return True
-        
-        i -= 1
+    i = find_def(token)
+    if i >= 0:
+        name, compile_fn, expected_parameters = defs[i]
+        compile_fn(stream, expected_parameters)
+        return True
     
     # Try to interpret the unknown token as the start of a definition.
     if compile_unknown(token, stream):
@@ -314,7 +365,11 @@ def is_number(token):
 
 def compile_number(token):
 
+    global pending_operands
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement."
     code_area.append((load_number, int(token)))
+    pending_operands += 1
 
 def is_string(token):
 
@@ -323,7 +378,11 @@ def is_string(token):
 
 def compile_string(token):
 
+    global pending_operands
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement."
     code_area.append((load_string, token[1:-1]))
+    pending_operands += 1
 
 def data_size():
 
