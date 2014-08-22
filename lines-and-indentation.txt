@@ -57,6 +57,10 @@ code to handle them and produce a result. When used as part of a control flow
 block, the handler function for the surrounding statement will generate code
 to handle the result.
 
+Although it may be possible to infer the types associated with each parameter
+from the way they are used in the function, we are not aiming to make the
+parser complex enough to achieve this.
+
 Example code (variable definition)
 ----------------------------------
 
@@ -65,4 +69,3 @@ x = 0
 When the "x" name is encountered, it is initially undefined. This would be an
 error if we were trying to use its value, but we are defining it. This means
 that it must be immediately followed by an assignment operator.
-

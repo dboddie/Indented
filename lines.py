@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+"""
+Experimental parser/compiler for an indented Forth-like language.
+
+Remaining issues:
+
+ * How to implement local variables?
+   * We can define a dictionary to index local variables on the stack for each
+     function in the implementation language but what happens when we want to
+     reimplement the compiler in the target language?
+
+ * How to declare the types of function parameters?
+
+"""
+
 import sys
 
 # Compiler/interpreter internals
@@ -22,12 +36,18 @@ assignment_token = "="
 
 def compile_def(stream, expected_parameters):
 
+    global code_area
+    
     # Read the definition's name.
     name = read_token(stream)
     
     i = find_def(name)
     if i != -1:
         raise SyntaxError, "Definition already exists: %s" % token
+    
+    # Construct a table with which to reference arguments associated with
+    # the parameters.
+    var_stack.append({})
     
     # Read the names of the parameters.
     parameters = []
@@ -52,7 +72,8 @@ def compile_def(stream, expected_parameters):
             break
         compile_token(token)
     
-    defs.append((name, compile_call, parameters))
+    defs.append((name, code_area, parameters))
+    code_area = []
 
 def compile_call(stream, expected_parameters):
 
@@ -104,7 +125,6 @@ def compile_equals(stream, expected_parameters):
 
 def compile_assign(stream, expected_parameters):
 
-    print "assign"
     token = read_token(stream)
     return compile_token(token)
 
@@ -430,3 +450,5 @@ if __name__ == "__main__":
         compile_token(token)
         if newline:
             execute()
+    
+    print defs
