@@ -44,8 +44,14 @@ def compile_assign(stream, expected_parameters):
     compile_token(token)
     code_area.append((assign, None))
 
-def compile_body(token, stream):
+def compile_body(stream):
 
+    # Skip newlines.
+    while True:
+        token = read_token(stream)
+        if token != newline_token:
+            break
+    
     # Expect an indentation token.
     if token != indent_token:
         raise SyntaxError, "Expected indentation before body of structure on line %i." % line
@@ -114,13 +120,7 @@ def compile_def(stream, expected_parameters):
         
         var_stack[-1].append((name_token, value_size))
     
-    # Skip newlines.
-    while True:
-        token = read_token(stream)
-        if token != newline_token:
-            break
-    
-    compile_body(token, stream)
+    compile_body(stream)
     
     defs.append((name, code_area, var_stack[-1]))
     
@@ -156,8 +156,7 @@ def compile_if(stream, expected_parameters):
     # Insert a branch instruction placeholder.
     code_area.append((branch_if_false, None))
     
-    token = read_token(stream)
-    compile_body(token, stream)
+    compile_body(stream)
     
     # Replace the placeholder instruction stored earlier with a branch
     # instruction.
