@@ -5,19 +5,19 @@ Experimental parser/compiler for an indented Forth-like language.
 
 Remaining issues:
 
- * How to implement local variables?
-   * We can define a dictionary to index local variables on the stack for each
-     function in the implementation language but what happens when we want to
-     reimplement the compiler in the target language?
+ * Need to separate variable stack frames for function parameters and local
+   variables.
 
- * How to declare the types of function parameters?
+ * Need to handle assignments to variables and comparisons between both
+   constants and variables.
 
 """
 
-import sys
+import pprint, sys
 
 # Compiler/interpreter internals
 
+line = 1
 newline = False
 indent = 0
 indent_stack = [0]
@@ -32,28 +32,47 @@ dedent_token = "\td"
 newline_token = "\n"
 assignment_token = "="
 
+# Type sizes
+
+number_size = 4
+
 # Built-in compilation functions
 
 def compile_def(stream, expected_parameters):
 
-    global code_area
+    global code_area, var_stack
     
     # Read the definition's name.
     name = read_token(stream)
     
     i = find_def(name)
     if i != -1:
-        raise SyntaxError, "Definition already exists: %s" % token
+        raise SyntaxError, "Definition already exists on line %i: '%s'" % (line, token)
     
-    # Construct a table with which to reference arguments associated with
-    # the parameters.
-    var_stack.append({})
+    # Append a new frame to the variable stack.
+    var_stack.append([])
     
-    # Read the names of the parameters.
-    parameters = []
+    # Read the names of the parameters, each of which needs to supply a
+    # default value.
     while newline == False:
+    
+        name_token = read_token(stream)
+        
         token = read_token(stream)
-        parameters.append(token)
+        if token != assignment_token:
+            raise SyntaxError, "Expected assignment for parameter in definition on line %i: '%s'" % (line, token)
+        
+        value_token = read_token(stream)
+        if not is_constant(value_token):
+            raise SyntaxError, "Default value for '%s' parameter is not a constant on line %i: '%s'" % (line, value_token)
+        
+        # Determine the size required for the value based on the constant type.
+        if is_number(value_token):
+            value_size = number_size
+        else:
+            raise SyntaxError, "Unhandled type for '%s' parameter on line %i: '%s'" % (name_token, line, value_token)
+        
+        var_stack[-1].append((name_token, value_size))
     
     # Skip newlines.
     while True:
@@ -61,9 +80,20 @@ def compile_def(stream, expected_parameters):
         if token != newline_token:
             break
     
+    compile_body(token, stream)
+    
+    defs.append((name, code_area, var_stack[-1]))
+    
+    # Pop the stack frame from the local variables stack and clear the
+    # temporary code area.
+    var_stack.pop()
+    code_area = []
+
+def compile_body(token, stream):
+
     # Expect an indentation token.
     if token != indent_token:
-        raise SyntaxError, "Expected indentation before body of structure."
+        raise SyntaxError, "Expected indentation before body of structure on line %i." % line
     
     # Compile the body of the structure.
     while True:
@@ -71,9 +101,6 @@ def compile_def(stream, expected_parameters):
         if token == dedent_token:
             break
         compile_token(token)
-    
-    defs.append((name, code_area, parameters))
-    code_area = []
 
 def compile_call(stream, expected_parameters):
 
@@ -92,16 +119,8 @@ def compile_if(stream, expected_parameters):
     # Insert a branch instruction placeholder.
     code_area.append((branch_if_false, None))
     
-    # Expect an indentation token.
-    if read_token(stream) != indent_token:
-        raise SyntaxError, "Expected indentation before body of structure."
-    
-    # Compile the body of the structure.
-    while True:
-        token = read_token(stream)
-        if token == dedent_token:
-            break
-        compile_token(token)
+    token = read_token(stream)
+    compile_body(token, stream)
     
     # Replace the placeholder instruction stored earlier with a branch
     # instruction.
@@ -111,20 +130,22 @@ def compile_if(stream, expected_parameters):
 def compile_equals(stream, expected_parameters):
 
     global pending_operands
+    
     if pending_operands != 1:
-        raise SyntaxError, "Unexpected number of arguments to operator."
+        raise SyntaxError, "Unexpected number of arguments to operator on line %i." % line
     
     pending_operands -= 1
     
     # Compile the second argument to the comparison.
     token = read_token(stream)
     if not compile_token(token):
-        raise SyntaxError, "Missing second argument to operator."
+        raise SyntaxError, "Missing second argument to operator on line %i." % line
     
     code_area.append((compare_equals, None))
 
 def compile_assign(stream, expected_parameters):
 
+    print expected_parameters
     token = read_token(stream)
     return compile_token(token)
 
@@ -136,23 +157,111 @@ def compile_unknown(token, stream):
     next_token = read_token(stream)
     
     if next_token != assignment_token:
-        raise SyntaxError, "Undefined object: %s" % token
+        raise SyntaxError, "Undefined object on line %i: '%s'" % (line, token)
     
     # Compile code to define an object with the name given by the token.
     if not compile_token(assignment_token):
-        raise SyntaxError, "Invalid assignment to %s" % token
+        raise SyntaxError, "Invalid assignment to '%s' on line %i" % (token, line)
     
-    i = len(var_stack) - 1
-    while i >= 0:
-        name, size = var_stack[i]
-        if name == token:
-            break
-        elif name is None:
-            # Ensure that there is enough space reserved for this variable.
-            var_stack.append((token, data_size()))
+    # Ensure that there is enough space reserved for this variable.
+    var_stack[-1].append((name_token, data_size()))
     
-    print var_stack
     return True
+
+def compile_load_var(index):
+
+    global code_area, pending_operands
+    
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement on line %i." % line
+    
+    pending_operands += 1
+    
+    # Load the value of the variable referred to by the index into the variable
+    # stack.
+    name, data_size = var_stack[-1][index]
+    
+    i = 0
+    offset = 0
+    while i < index:
+        offset += var_stack[-1][1]
+    
+    code_area.append((load_var_address, (offset, data_size)))
+
+# Constant handling
+
+def is_constant(token):
+
+    if is_number(token):
+        return True
+    
+    if is_string(token):
+        return True
+    
+    return False
+
+def compile_constant(token):
+
+    if is_number(token):
+        compile_number(token)
+        return True
+    
+    if is_string(token):
+        compile_string(token)
+        return True
+    
+    return False
+
+def is_number(token):
+
+    if token[0] == "-":
+        if len(token) == 1:
+            return False
+        else:
+            i = 1
+    else:
+        i = 0
+        
+    while i < len(token):
+        if token[i] not in "0123456789":
+            return False
+        i += 1
+    
+    return True
+
+def compile_number(token):
+
+    global pending_operands
+    
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement on line %i." % line
+    
+    code_area.append((load_number, int(token)))
+    pending_operands += 1
+
+def is_string(token):
+
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        return True
+
+def compile_string(token):
+
+    global pending_operands
+    
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement on line %i." % line
+    
+    code_area.append((load_string, token[1:-1]))
+    pending_operands += 1
+
+def data_size():
+
+    if code_area[-1][0] == load_number:
+        return number_size
+    elif code_area[-1][0] == load_string:
+        return len(code_area[-1][1])
+    else:
+        raise SyntaxError, "Unknown data size."
 
 # Built-in run-time functions
 
@@ -182,6 +291,12 @@ def branch_if_false(value):
     else:
         code_offset += 1
 
+def load_var_address(value):
+
+    offset, size = value
+    for i in range(size):
+        value_stack.append(var_stack[i])
+
 # Environment workspace
 
 # Global definitions
@@ -198,10 +313,6 @@ var_stack = []
 
 # Parsing/compilation functions
 
-def add_def(token):
-
-    defs.append(token)
-
 def find_def(token):
 
     i = len(defs) - 1
@@ -215,9 +326,22 @@ def find_def(token):
     
     return -1
 
+def find_var(token):
+
+    i = len(var_stack[-1]) - 1
+    while i >= 0:
+    
+        name, size = var_stack[-1][i]
+        if name == token:
+            return i
+        
+        i -= 1
+    
+    return -1
+
 def read_token(stream):
 
-    global at_eof, indent, indent_stack, in_comment, in_string, newline
+    global at_eof, indent, indent_stack, line, in_comment, in_string, newline
     global pending_token
     
     # If at the end of the file then emit dedent tokens until the indentation
@@ -273,10 +397,9 @@ def read_token(stream):
             # Newlines reset the indentation level and end comments and
             # strings. Emit any current token and queue a newline token, or
             # just emit the newline token if there is no current token.
-            indent = 0
-            newline = True
-            in_comment = False
-            in_string = False
+            end_statement()
+            line += 1
+            
             if token:
                 pending_token = newline_token
                 break
@@ -319,10 +442,20 @@ def compile_line_tokens(stream):
     
     while True:
         token = read_token(stream)
+        if not compile_token(token):
+            raise SyntaxError, "Unexpected token on line %i: %s" % (line, repr(token))
         if token == newline_token:
             break
-        if not compile_token(token):
-            raise SyntaxError, "Unexpected token: %s" % repr(token)
+
+def end_statement():
+
+    global indent, in_comment, in_string, newline, pending_operands
+    
+    indent = 0
+    newline = True
+    in_comment = False
+    in_string = False
+    pending_operands = 0
 
 def compile_token(token):
 
@@ -339,86 +472,38 @@ def compile_token(token):
     if token == newline_token:
         # End the current statement. An incomplete statement is a syntax error.
         pending_operands = 0
-        return False
-    
-    if is_number(token):
-        compile_number(token)
         return True
     
-    if is_string(token):
-        compile_string(token)
+    if compile_constant(token):
         return True
     
     if token.startswith("#"):
         return True
     
+    # Try to find a definition that matches the token.
     i = find_def(token)
     if i >= 0:
         name, compile_fn, expected_parameters = defs[i]
         compile_fn(stream, expected_parameters)
         return True
     
-    # Try to interpret the unknown token as the start of a definition.
+    # Try to find a variable name that matches the token.
+    i = find_var(token)
+    if i >= 0:
+        return compile_load_var(i)
+    
+    # Try to interpret the unknown token as the start of an assignment.
     if compile_unknown(token, stream):
         return True
     
     raise SyntaxError, repr(token)
-
-# Constant handling
-
-def is_number(token):
-
-    if token[0] == "-":
-        if len(token) == 1:
-            return False
-        else:
-            i = 1
-    else:
-        i = 0
-        
-    while i < len(token):
-        if token[i] not in "0123456789":
-            return False
-        i += 1
-    
-    return True
-
-def compile_number(token):
-
-    global pending_operands
-    if pending_operands:
-        raise SyntaxError, "Expected operator or end of statement."
-    code_area.append((load_number, int(token)))
-    pending_operands += 1
-
-def is_string(token):
-
-    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
-        return True
-
-def compile_string(token):
-
-    global pending_operands
-    if pending_operands:
-        raise SyntaxError, "Expected operator or end of statement."
-    code_area.append((load_string, token[1:-1]))
-    pending_operands += 1
-
-def data_size():
-
-    if code_area[-1][0] == load_number:
-        return 4
-    elif code_area[-1][0] == load_string:
-        return len(code_area[-1][1])
-    else:
-        raise SyntaxError, "Unknown data size."
 
 # Execution of code
 
 def execute():
 
     "Execute the code in the temporary code area."
-    global code_area, code_offset, value_stack
+    global code_area, code_offset, pending_operands, value_stack
     
     code_offset = 0
     while code_offset < len(code_area):
@@ -429,6 +514,7 @@ def execute():
     
     code_area = []
     value_stack = []
+    pending_operands = 0
 
 
 # Main program and compiler loop
@@ -441,14 +527,25 @@ if __name__ == "__main__":
     
     elif len(sys.argv) == 2:
         stream = open(sys.argv[1])
+        
+        while not at_eof:
+            compile_line_tokens(stream)
     
     else:
         stream = sys.stdin
+        
+        while not at_eof:
+            print "> ",
+            compile_line_tokens(stream)
+            if newline:
+                execute()
     
-    while not at_eof:
-        token = read_token(stream)
-        compile_token(token)
-        if newline:
-            execute()
-    
-    print defs
+    print "Definitions"
+    pprint.pprint(defs)
+    print
+    print "Local variables"
+    print var_stack
+    print
+    print "Code area"
+    print code_area
+    print
