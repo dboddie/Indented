@@ -38,9 +38,48 @@ number_size = 4
 
 # Built-in compilation functions
 
+def compile_assign(stream, expected_parameters):
+
+    token = read_token(stream)
+    compile_token(token)
+    code_area.append((assign, None))
+
+def compile_body(token, stream):
+
+    # Expect an indentation token.
+    if token != indent_token:
+        raise SyntaxError, "Expected indentation before body of structure on line %i." % line
+    
+    # Compile the body of the structure.
+    while True:
+        token = read_token(stream)
+        if token == dedent_token:
+            break
+        compile_token(token)
+
+def compile_call(stream, expected_parameters):
+
+    for parameter in expected_parameters:
+        token = read_token(stream)
+        compile_token(token)
+    
+    ### Generate code for the call itself.
+
+def compile_constant(token):
+
+    if is_number(token):
+        compile_number(token)
+        return True
+    
+    if is_string(token):
+        compile_string(token)
+        return True
+    
+    return False
+
 def compile_def(stream, expected_parameters):
 
-    global code_area, var_stack
+    global code_area, pending_operands, var_stack
     
     # Read the definition's name.
     name = read_token(stream)
@@ -62,15 +101,16 @@ def compile_def(stream, expected_parameters):
         if token != assignment_token:
             raise SyntaxError, "Expected assignment for parameter in definition on line %i: '%s'" % (line, token)
         
+        # Read the value token and try to compile it. The instruction generated
+        # will be discarded.
         value_token = read_token(stream)
-        if not is_constant(value_token):
+        if not compile_constant(value_token):
             raise SyntaxError, "Default value for '%s' parameter is not a constant on line %i: '%s'" % (line, value_token)
         
         # Determine the size required for the value based on the constant type.
-        if is_number(value_token):
-            value_size = number_size
-        else:
-            raise SyntaxError, "Unhandled type for '%s' parameter on line %i: '%s'" % (name_token, line, value_token)
+        value_size = data_size()
+        code_area.pop()
+        pending_operands = 0
         
         var_stack[-1].append((name_token, value_size))
     
@@ -89,24 +129,21 @@ def compile_def(stream, expected_parameters):
     var_stack.pop()
     code_area = []
 
-def compile_body(token, stream):
+def compile_equals(stream, expected_parameters):
 
-    # Expect an indentation token.
-    if token != indent_token:
-        raise SyntaxError, "Expected indentation before body of structure on line %i." % line
+    global pending_operands
     
-    # Compile the body of the structure.
-    while True:
-        token = read_token(stream)
-        if token == dedent_token:
-            break
-        compile_token(token)
-
-def compile_call(stream, expected_parameters):
-
-    for parameter in expected_parameters:
-        token = read_token(stream)
-        compile_token(token)
+    if pending_operands != 1:
+        raise SyntaxError, "Unexpected number of arguments to operator on line %i." % line
+    
+    pending_operands -= 1
+    
+    # Compile the second argument to the comparison.
+    token = read_token(stream)
+    if not compile_token(token):
+        raise SyntaxError, "Missing second argument to operator on line %i." % line
+    
+    code_area.append((compare_equals, None))
 
 def compile_if(stream, expected_parameters):
 
@@ -127,46 +164,16 @@ def compile_if(stream, expected_parameters):
     offset = len(code_area) - branch_instruction_address
     code_area[branch_instruction_address] = (branch_if_false, offset)
 
-def compile_equals(stream, expected_parameters):
+def compile_line_tokens(stream):
 
-    global pending_operands
+    "Compiles tokens until the end of the line."
     
-    if pending_operands != 1:
-        raise SyntaxError, "Unexpected number of arguments to operator on line %i." % line
-    
-    pending_operands -= 1
-    
-    # Compile the second argument to the comparison.
-    token = read_token(stream)
-    if not compile_token(token):
-        raise SyntaxError, "Missing second argument to operator on line %i." % line
-    
-    code_area.append((compare_equals, None))
-
-def compile_assign(stream, expected_parameters):
-
-    print expected_parameters
-    token = read_token(stream)
-    return compile_token(token)
-
-def compile_unknown(token, stream):
-
-    global var_stack
-    
-    # Read the next token and check whether it is an assignment operator.
-    next_token = read_token(stream)
-    
-    if next_token != assignment_token:
-        raise SyntaxError, "Undefined object on line %i: '%s'" % (line, token)
-    
-    # Compile code to define an object with the name given by the token.
-    if not compile_token(assignment_token):
-        raise SyntaxError, "Invalid assignment to '%s' on line %i" % (token, line)
-    
-    # Ensure that there is enough space reserved for this variable.
-    var_stack[-1].append((name_token, data_size()))
-    
-    return True
+    while True:
+        token = read_token(stream)
+        if not compile_token(token):
+            raise SyntaxError, "Unexpected token on line %i: %s" % (line, repr(token))
+        if token == newline_token:
+            break
 
 def compile_load_var(index):
 
@@ -188,6 +195,87 @@ def compile_load_var(index):
     
     code_area.append((load_var_address, (offset, data_size)))
 
+def compile_number(token):
+
+    global pending_operands
+    
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement on line %i." % line
+    
+    code_area.append((load_number, int(token)))
+    pending_operands += 1
+
+def compile_string(token):
+
+    global pending_operands
+    
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement on line %i." % line
+    
+    code_area.append((load_string, token[1:-1]))
+    pending_operands += 1
+
+def compile_token(token):
+
+    global pending_operands
+    
+    if not token:
+        return False
+    
+    if token == dedent_token:
+        # If the token is not indented sufficiently then it is part of another
+        # control flow structure.
+        return False
+    
+    if token == newline_token:
+        # End the current statement. An incomplete statement is a syntax error.
+        pending_operands = 0
+        return True
+    
+    if compile_constant(token):
+        return True
+    
+    if token.startswith("#"):
+        return True
+    
+    # Try to find a definition that matches the token.
+    i = find_def(token)
+    if i >= 0:
+        name, compile_fn, expected_parameters = defs[i]
+        compile_fn(stream, expected_parameters)
+        return True
+    
+    # Try to find a variable name that matches the token.
+    i = find_var(token)
+    if i >= 0:
+        compile_load_var(i)
+        return True
+    
+    # Try to interpret the unknown token as the start of an assignment.
+    if compile_unknown(token, stream):
+        return True
+    
+    raise SyntaxError, repr(token)
+
+def compile_unknown(token, stream):
+
+    global var_stack
+    
+    # Read the next token and check whether it is an assignment operator.
+    next_token = read_token(stream)
+    
+    if next_token != assignment_token:
+        raise SyntaxError, "Undefined object on line %i: '%s'" % (line, token)
+    
+    # Compile code to define an object with the name given by the token.
+    if not compile_token(assignment_token):
+        raise SyntaxError, "Invalid assignment to '%s' on line %i" % (token, line)
+    
+    # Ensure that there is enough space reserved for this variable.
+    var_stack[-1].append((name_token, data_size()))
+    
+    return True
+
 # Constant handling
 
 def is_constant(token):
@@ -196,18 +284,6 @@ def is_constant(token):
         return True
     
     if is_string(token):
-        return True
-    
-    return False
-
-def compile_constant(token):
-
-    if is_number(token):
-        compile_number(token)
-        return True
-    
-    if is_string(token):
-        compile_string(token)
         return True
     
     return False
@@ -229,30 +305,10 @@ def is_number(token):
     
     return True
 
-def compile_number(token):
-
-    global pending_operands
-    
-    if pending_operands:
-        raise SyntaxError, "Expected operator or end of statement on line %i." % line
-    
-    code_area.append((load_number, int(token)))
-    pending_operands += 1
-
 def is_string(token):
 
     if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
         return True
-
-def compile_string(token):
-
-    global pending_operands
-    
-    if pending_operands:
-        raise SyntaxError, "Expected operator or end of statement on line %i." % line
-    
-    code_area.append((load_string, token[1:-1]))
-    pending_operands += 1
 
 def data_size():
 
@@ -297,16 +353,23 @@ def load_var_address(value):
     for i in range(size):
         value_stack.append(var_stack[i])
 
+def assign(value):
+
+    print "assign", value
+
 # Environment workspace
 
 # Global definitions
 defs = [("if", compile_if, []), ("==", compile_equals, []),
         ("=", compile_assign, []), ("def", compile_def, [])]
+
 # Code compilation workspace and offset into code
 code_area = []
 code_offset = 0
+
 # Run-time value handling
 value_stack = []
+
 # Local variable stack, for run-time variable storage, but also compile-time
 # indexing of variables
 var_stack = []
@@ -436,17 +499,6 @@ def read_token(stream):
     
     return token
 
-def compile_line_tokens(stream):
-
-    "Compiles tokens until the end of the line."
-    
-    while True:
-        token = read_token(stream)
-        if not compile_token(token):
-            raise SyntaxError, "Unexpected token on line %i: %s" % (line, repr(token))
-        if token == newline_token:
-            break
-
 def end_statement():
 
     global indent, in_comment, in_string, newline, pending_operands
@@ -456,47 +508,6 @@ def end_statement():
     in_comment = False
     in_string = False
     pending_operands = 0
-
-def compile_token(token):
-
-    global pending_operands
-    
-    if not token:
-        return False
-    
-    if token == dedent_token:
-        # If the token is not indented sufficiently then it is part of another
-        # control flow structure.
-        return False
-    
-    if token == newline_token:
-        # End the current statement. An incomplete statement is a syntax error.
-        pending_operands = 0
-        return True
-    
-    if compile_constant(token):
-        return True
-    
-    if token.startswith("#"):
-        return True
-    
-    # Try to find a definition that matches the token.
-    i = find_def(token)
-    if i >= 0:
-        name, compile_fn, expected_parameters = defs[i]
-        compile_fn(stream, expected_parameters)
-        return True
-    
-    # Try to find a variable name that matches the token.
-    i = find_var(token)
-    if i >= 0:
-        return compile_load_var(i)
-    
-    # Try to interpret the unknown token as the start of an assignment.
-    if compile_unknown(token, stream):
-        return True
-    
-    raise SyntaxError, repr(token)
 
 # Execution of code
 
