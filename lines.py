@@ -260,6 +260,9 @@ def compile_unknown(name_token, stream):
 
     global var_stack
     
+    if pending_operands:
+        raise SyntaxError, "Expected operator or end of statement on line %i." % line
+    
     # Read the next token and check whether it is an assignment operator.
     next_token = read_token(stream)
     
@@ -267,8 +270,7 @@ def compile_unknown(name_token, stream):
         raise SyntaxError, "Undefined object on line %i: '%s'" % (line, name_token)
     
     # Read the value or expression that will be assigned to the variable.
-    token = read_token(stream)
-    compile_token(token)
+    compile_line_tokens(stream)
     
     # Calculate the offset in the current stack frame of this new variable.
     offset = var_offset(len(var_stack[-1]))
@@ -354,30 +356,36 @@ def branch_if_false(value):
 
 def load_var_address(value):
 
+    global code_offset
     offset, size = value
     for i in range(size):
-        value_stack.append(var_stack[i])
+        value_stack.append(var_stack[-1][i])
+    code_offset += 1
 
 def assign(value):
 
+    global code_offset
     print "assign", value
+    code_offset += 1
 
 # Environment workspace
 
-# Global definitions
+# Create a list of global definitions that initially includes built-in keywords.
 defs = [("if", compile_if, []), ("==", compile_equals, []),
         ("=", compile_assign, []), ("def", compile_def, [])]
 
-# Code compilation workspace and offset into code
+# Define a code compilation workspace and an offset into code for use when
+# executing/simulating the code.
 code_area = []
 code_offset = 0
 
-# Run-time value handling
+# Define a stack for run-time value handling.
 value_stack = []
 
-# Local variable stack, for run-time variable storage, but also compile-time
-# indexing of variables
-var_stack = []
+# Define a local variable stack for run-time variable storage, but also
+# compile-time indexing of variables, and supply it with a list to contain
+# variables in the scope outside functions.
+var_stack = [[]]
 
 # Parsing/compilation functions
 
@@ -562,9 +570,18 @@ if __name__ == "__main__":
         
         while not at_eof:
             print "> ",
-            compile_line_tokens(stream)
-            if newline:
-                execute()
+            try:
+                compile_line_tokens(stream)
+                if newline:
+                    execute()
+            except SyntaxError as t:
+                print t
+                while True:
+                    token = read_token(stream)
+                    if token == newline_token:
+                        break
+                end_statement()
+                code_area = []
     
     print "Definitions"
     pprint.pprint(defs)
