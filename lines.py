@@ -122,6 +122,9 @@ def compile_def(stream, expected_parameters):
     
     compile_body(stream)
     
+    # Add the definition to the global list, including information about its
+    # name, the instructions that implement it, and the table of parameters and
+    # local variables.
     defs.append((name, code_area, var_stack[-1]))
     
     # Pop the stack frame from the local variables stack and clear the
@@ -143,6 +146,7 @@ def compile_equals(stream, expected_parameters):
     if not compile_token(token):
         raise SyntaxError, "Missing second argument to operator on line %i." % line
     
+    #if code_area[-2][0] == load_number:
     code_area.append((compare_equals, None))
 
 def compile_if(stream, expected_parameters):
@@ -183,15 +187,11 @@ def compile_load_var(index):
     
     pending_operands += 1
     
-    # Load the value of the variable referred to by the index into the variable
-    # stack.
     name, data_size = var_stack[-1][index]
+    offset = var_offset(index)
     
-    i = 0
-    offset = 0
-    while i < index:
-        offset += var_stack[-1][1]
-    
+    # Load the address of the variable referred to by the index into the
+    # variable stack.
     code_area.append((load_var_address, (offset, data_size)))
 
 def compile_number(token):
@@ -256,7 +256,7 @@ def compile_token(token):
     
     raise SyntaxError, repr(token)
 
-def compile_unknown(token, stream):
+def compile_unknown(name_token, stream):
 
     global var_stack
     
@@ -264,14 +264,20 @@ def compile_unknown(token, stream):
     next_token = read_token(stream)
     
     if next_token != assignment_token:
-        raise SyntaxError, "Undefined object on line %i: '%s'" % (line, token)
+        raise SyntaxError, "Undefined object on line %i: '%s'" % (line, name_token)
     
-    # Compile code to define an object with the name given by the token.
-    if not compile_token(assignment_token):
-        raise SyntaxError, "Invalid assignment to '%s' on line %i" % (token, line)
+    # Read the value or expression that will be assigned to the variable.
+    token = read_token(stream)
+    compile_token(token)
+    
+    # Calculate the offset in the current stack frame of this new variable.
+    offset = var_offset(len(var_stack[-1]))
     
     # Ensure that there is enough space reserved for this variable.
-    var_stack[-1].append((name_token, data_size()))
+    var_size = data_size()
+    var_stack[-1].append((name_token, var_size))
+    
+    code_area.append((assign, (offset, var_size)))
     
     return True
 
@@ -400,6 +406,16 @@ def find_var(token):
         i -= 1
     
     return -1
+
+def var_offset(index):
+
+    i = 0
+    offset = 0
+    while i < index:
+        offset += var_stack[-1][i][1]
+        i += 1
+    
+    return offset
 
 def read_token(stream):
 
