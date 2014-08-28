@@ -26,6 +26,40 @@ and free space can be compiled in the body of the function.
 Initially, the grammar will be loosely defined, allowing both valid and invalid
 syntax to some extent.
 
+Grammar
+-------
+
+<function> =
+"def" <name> <var0> "=" <value0> <var1> "=" <value1> ...
+<body>
+
+<body> =
+[indent]
+    <statement0>
+    <statement1>
+    ...
+[dedent]
+
+<statement> = <if> | <while> | <assignment>
+
+<if> =
+"if" <expression>
+<body>
+
+<while> =
+"while" <expression>
+<body>
+
+<assignment> =
+<name> "=" <expression>
+
+<expression> =
+<value> [<operator> <value>] ...
+
+<value> = <name> | <constant>
+
+<operator> = "==" | "!=" | "+" | "-"
+
 Example code (function definition)
 ----------------------------------
 
@@ -69,3 +103,8 @@ x = 0
 When the "x" name is encountered, it is initially undefined. This would be an
 error if we were trying to use its value, but we are defining it. This means
 that it must be immediately followed by an assignment operator.
+
+Problems
+--------
+
+See the lines.py file for a list of current problems.
