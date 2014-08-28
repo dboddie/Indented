@@ -5,12 +5,10 @@ Experimental parser/compiler for an indented Forth-like language.
 
 Remaining issues:
 
- * Need to separate variable stack frames for function parameters and local
-   variables.
-
  * Need to handle assignments to variables and comparisons between both
    constants and variables.
 
+ * The current implementation makes it difficult to enforce a grammar.
 """
 
 import pprint, sys
@@ -149,10 +147,20 @@ def compile_equals(stream, expected_parameters):
     #if code_area[-2][0] == load_number:
     code_area.append((compare_equals, None))
 
+def compile_expression(stream):
+
+    compile_value(stream) ###
+    
+    while True:
+        if not compile_operator(stream):
+            break
+        if not compile_value(stream):
+            raise SyntaxError, "Expected a value on line %i." % line
+
 def compile_if(stream, expected_parameters):
 
     # Compile the condition.
-    compile_line_tokens(stream)
+    compile_expression(stream)
     
     # Save the code area offset for later.
     branch_instruction_address = len(code_area)
@@ -193,6 +201,16 @@ def compile_load_var(index):
     # Load the address of the variable referred to by the index into the
     # variable stack.
     code_area.append((load_var_address, (offset, data_size)))
+
+def compile_name(token):
+
+    # Try to find a variable name that matches the token.
+    i = find_var(token)
+    if i >= 0:
+        compile_load_var(i)
+        return True
+    
+    return False
 
 def compile_number(token):
 
@@ -244,10 +262,7 @@ def compile_token(token):
         compile_fn(stream, expected_parameters)
         return True
     
-    # Try to find a variable name that matches the token.
-    i = find_var(token)
-    if i >= 0:
-        compile_load_var(i)
+    if compile_name(token):
         return True
     
     # Try to interpret the unknown token as the start of an assignment.
@@ -282,6 +297,12 @@ def compile_unknown(name_token, stream):
     code_area.append((assign, (offset, var_size)))
     
     return True
+
+def compile_value(stream):
+
+    if compile_constant(stream):
+        return True
+    elif compile_load_var(
 
 # Constant handling
 
