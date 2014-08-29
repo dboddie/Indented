@@ -1,0 +1,3 @@
+def is_zero x = 255
+    if x == 0
+        1 == 1
