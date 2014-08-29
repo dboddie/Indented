@@ -29,6 +29,7 @@ indent_token = "\ti"
 dedent_token = "\td"
 newline_token = "\n"
 assignment_token = "="
+eof_token = "\te"
 
 # Type sizes
 
@@ -302,7 +303,6 @@ def compile_value(stream):
 
     if compile_constant(stream):
         return True
-    elif compile_load_var(
 
 # Constant handling
 
@@ -458,7 +458,7 @@ def read_token(stream):
             indent_stack.pop()
             return dedent_token
         else:
-            return newline_token
+            return eof_token
     
     # If we have encountered tokens and the indentation level is less than
     # previously then emit a dedent token.
@@ -491,11 +491,15 @@ def read_token(stream):
                 return dedent_token
             else:
                 return newline_token
-        elif ch == " ":
+        elif ch == "\t" or ch == " ":
+            # Substitute four spaces for each tab.
+            if ch == "\t":
+                ch = "    "
+            
             # Spaces separate tokens unless in a string. Emit the current token
             # if already started; otherwise continue reading.
             if newline:
-                indent += 1
+                indent += len(ch)
             elif in_string or in_comment:
                 token += ch
             elif token:
