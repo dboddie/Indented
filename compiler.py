@@ -107,14 +107,20 @@ def parse_def(stream):
 
 def parse_eof(stream):
 
+    top = len(used)
     token = get_token(stream)
-    return token == tokeniser.eof_token
+    
+    if token == tokeniser.eof_token:
+        return True
+    else:
+        put_tokens(top)
+        return False
 
 def parse_expression(stream):
 
-    "<expression> = <value> [<operator> <value>]+"
+    "<expression> = <operand> [<operator> <operand>]+"
     
-    if not parse_value(stream):
+    if not parse_operand(stream):
         return False
     
     while True:
@@ -124,11 +130,11 @@ def parse_expression(stream):
         
         if not parse_operator(stream):
             # Not an operator, so back out of the operation, but allow the
-            # expression.
-            put_tokens(top)
+            # expression. The operator function should have pushed tokens back
+            # on the stack.
             break
         
-        if not parse_value(stream):
+        if not parse_operand(stream):
             # Not a value, but one was expected, so report an error.
             raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
     
@@ -136,8 +142,27 @@ def parse_expression(stream):
 
 def parse_newline(stream):
 
+    top = len(used)
     token = get_token(stream)
-    return token == tokeniser.newline_token
+    
+    if token == tokeniser.newline_token:
+        return True
+    else:
+        put_tokens(top)
+        return False
+
+def parse_operand(stream):
+
+    "<operand> = <value> | <function call>"
+    
+    if parse_value(stream):
+        return True
+    elif parse_variable(stream):
+        return True
+    #elif parse_function_call(stream):
+    #    return True
+    else:
+        return False
 
 def parse_operator(stream):
 
@@ -182,7 +207,7 @@ def parse_program(stream):
         elif parse_separator(stream):
             print "separator"
         else:
-            raise SyntaxError, "Unexpected input at line %i." % line
+            raise SyntaxError, "Unexpected input at line %i." % tokeniser.line
 
 def parse_separator(stream):
 
@@ -229,18 +254,27 @@ def parse_value(stream):
         return True
     
     else:
-        for name, type in local_variables:
-            if name == token:
-                print "local variable", token
-                return True
-        
-        for name, type in global_variables:
-            if name == token:
-                print "global variable", token
-                return True
+        put_tokens(top)
+        return False
+
+def parse_variable(stream):
+
+    top = len(used)
+    token = get_token(stream)
+    
+    for name, type in local_variables:
+        if name == token:
+            print "local variable", token
+            return True
+    
+    for name, type in global_variables:
+        if name == token:
+            print "global variable", token
+            return True
     
     put_tokens(top)
     return False
+
 
 if __name__ == "__main__":
 
@@ -250,11 +284,7 @@ if __name__ == "__main__":
     
     stream = open(sys.argv[1])
     
-    parse_program(stream)
-    
-    while True:
-        token = read_token(stream)
-        if token == tokeniser.eof_token:
-            break
-        
-        print repr(token)
+    try:
+        parse_program(stream)
+    except SyntaxError as exception:
+        sys.stderr.write(str(exception) + "\n")
