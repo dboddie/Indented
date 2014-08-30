@@ -47,6 +47,20 @@ def is_constant(token):
     
     return False
 
+def get_size(token):
+
+    if is_number(token):
+        return True
+    
+    if is_string(token):
+        return True
+    
+    raise SyntaxError, "Unknown size for constant '%s' at line %i." % (token, tokeniser.line)
+
+def is_function_name(token):
+
+    return is_variable(token)
+
 def is_number(token):
 
     if token[0] == "-":
@@ -107,32 +121,138 @@ def get_token(stream):
     
     # Transfer the token to the list of used tokens but also return it.
     used.append(token)
+    
+    #print_tokens()
     return token
 
 def put_tokens(index):
 
     tokens[:] = used[index:] + tokens
     used[:] = used[:index]
+    #print_tokens()
 
 def discard_tokens():
 
     used[:] = []
+    #print_tokens()
+
+def print_tokens():
+
+    used_str = " ".join(map(repr, used))
+    print used_str, " ".join(map(repr, tokens))
+    print " "*len(used_str) + "^"
 
 # Parsing functions
 
-def parse_def(stream):
+def parse_body(stream):
 
-    return False
-
-"""
-    token = get_token(stream)
-    
-    if token != "def":
-        put_token(token)
+    if not parse_indent(stream):
         return False
     
-    ###
-"""
+    has_body = False
+    while True:
+    
+        if parse_control(stream):
+            print "control"
+        elif parse_statement(stream):
+            print "statement"
+        elif parse_separator(stream):
+            # Handle blank lines.
+            print "separator (blank)"
+        elif parse_dedent(stream):
+            break
+        else:
+            return False
+        
+        has_body = True
+    
+    if not has_body:
+        return False
+    
+    print "body"
+    return True
+
+def parse_control(stream):
+
+    top = len(used)
+    token = get_token(stream)
+    
+    if token == "if":
+        if parse_expression(stream):
+            print "expression"
+            if parse_body(stream):
+                print "if"
+                return True
+        
+        raise SyntaxError, "Invalid if structure at line %i." % tokeniser.line
+    
+    put_tokens(top)
+    return False
+
+def parse_dedent(stream):
+
+    top = len(used)
+    while True:
+    
+        token = get_token(stream)
+        if token == tokeniser.newline_token:
+            pass
+        elif token == tokeniser.dedent_token:
+            break
+        else:
+            put_tokens(top)
+            return False
+    
+    return True
+
+def parse_definition(stream):
+
+    # Clear the list of local variables.
+    local_variables[:] = []
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token == "def":
+    
+        token = get_token(stream)
+        if not is_function_name(token):
+            raise SyntaxError, "Invalid function name '%s' at line %i." % (
+                token, tokeniser.line)
+        
+        # Read the parameters, appending the names and types to the list of
+        # local variables.
+        while True:
+        
+            token = get_token(stream)
+            if token == tokeniser.newline_token:
+                break
+            
+            elif not is_variable(token):
+                raise SyntaxError, "Invalid parameter name '%s' at line %i." % (
+                    token, tokeniser.line)
+            
+            name = token
+            token = get_token(stream)
+            if token != tokeniser.assignment_token:
+                raise SyntaxError, "Expected '=' after parameter name '%s' at line %i." % (
+                    name, tokeniser.line)
+        
+            token = get_token(stream)
+            if not is_constant(token):
+                raise SyntaxError, "Expected constant after parameter name '%s' at line %i." % (
+                    name, tokeniser.line)
+            
+            local_variables.append((name, get_size(token)))
+        
+        if not parse_body(stream):
+            raise SyntaxError, "Invalid function definition at line %i." % tokeniser.line
+        
+        return True
+    
+    else:
+        put_tokens(top)
+        return False
 
 def parse_eof(stream):
 
@@ -166,6 +286,22 @@ def parse_expression(stream):
         if not parse_operand(stream):
             # Not a value, but one was expected, so report an error.
             raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
+    
+    return True
+
+def parse_indent(stream):
+
+    top = len(used)
+    while True:
+    
+        token = get_token(stream)
+        if token == tokeniser.newline_token:
+            pass
+        elif token == tokeniser.indent_token:
+            break
+        else:
+            put_tokens(top)
+            return False
     
     return True
 
@@ -231,10 +367,19 @@ def parse_program(stream):
 
     while tokeniser.at_eof == False:
     
-        if parse_statement(stream):
+        if parse_control(stream):
+            discard_tokens()
+            print "control"
+        elif parse_definition(stream):
+            discard_tokens()
+            print "definition"
+        elif parse_statement(stream):
+            discard_tokens()
             print "statement"
         elif parse_separator(stream):
-            print "separator"
+            # Handle blank lines.
+            discard_tokens()
+            print "separator (blank)"
         else:
             raise SyntaxError, "Unexpected input at line %i." % tokeniser.line
 
@@ -265,7 +410,6 @@ def parse_statement(stream):
             print "assignment"
         else:
             put_tokens(top)
-            return False
     
     if not parse_expression(stream):
         put_tokens(top)
@@ -312,6 +456,7 @@ def parse_variable(stream, define):
     
     if define:
         print "define", token
+        ### We need a way to determine if the variable is local or global.
         local_variables.append((token, None))
         return True
     else:

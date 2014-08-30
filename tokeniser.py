@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 tokeniser.py - Tokeniser for a simple compiler.
 
@@ -38,15 +40,6 @@ def read_token(stream):
     global at_eof, indent, indent_stack, line, in_comment, in_string, newline
     global pending_token
     
-    # If at the end of the file then emit dedent tokens until the indentation
-    # level is zero, then emit newline tokens.
-    if at_eof:
-        if indent < indent_stack[-1]:
-            indent_stack.pop()
-            return dedent_token
-        else:
-            return eof_token
-    
     # If we have encountered tokens and the indentation level is less than
     # previously then emit a dedent token.
     if not newline and indent < indent_stack[-1]:
@@ -72,9 +65,7 @@ def read_token(stream):
         if not ch:
             # At the end of a file, set a flag and start emitting dedent tokens
             # unless the indentation is already zero.
-            at_eof = True
-            
-            if indent > 0:
+            if indent < indent_stack[-1]:
                 indent_stack.pop()
                 pending_token = dedent_token
             else:
@@ -83,6 +74,10 @@ def read_token(stream):
             if not token:
                 token = pending_token
                 pending_token = ""
+            
+            if token == eof_token:
+                at_eof = True
+            
             break
         elif ch == "\t" or ch == " ":
             # Substitute four spaces for each tab.
@@ -150,3 +145,16 @@ def end_statement():
     in_string = False
     pending_operands = 0
 
+
+if __name__ == "__main__":
+
+    import sys
+    
+    if len(sys.argv) != 2:
+        sys.stderr.write("Usage: %s <file>\n" % sys.argv[0])
+        sys.exit(1)
+    
+    stream = open(sys.argv[1])
+    
+    while not at_eof:
+        print repr(read_token(stream))
