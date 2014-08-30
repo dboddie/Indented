@@ -112,6 +112,8 @@ def parse_eof(stream):
 
 def parse_expression(stream):
 
+    "<expression> = <value> [<operator> <value>]+"
+    
     if not parse_value(stream):
         return False
     
@@ -139,6 +141,8 @@ def parse_newline(stream):
 
 def parse_operator(stream):
 
+    '<operator> = "==" | "!=" | "<" | ">" | "+" | "-"'
+    
     top = len(used)
     token = get_token(stream)
     
@@ -182,6 +186,8 @@ def parse_program(stream):
 
 def parse_separator(stream):
 
+    "<separator> = <newline> | <eof>"
+    
     if parse_newline(stream):
         print "newline"
         return True
@@ -193,6 +199,8 @@ def parse_separator(stream):
 
 def parse_statement(stream):
 
+    "<statement> = <expression> <separator>"
+    
     top = len(used)
     
     if not parse_expression(stream):
@@ -207,6 +215,8 @@ def parse_statement(stream):
 
 def parse_value(stream):
 
+    "<value> = <number> | <string>"
+    
     top = len(used)
     token = get_token(stream)
     
