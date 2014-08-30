@@ -20,6 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from simulator import *
 from tokeniser import eof_token, read_token
 
+# Generated code
+
+code = []
+
 def generate_locals(local_variables):
 
     code = []
@@ -32,3 +36,47 @@ def generate_locals(local_variables):
     
     return code
 
+def generate_number(token, size):
+
+    value = int(token)
+    code.append((load_number, (value, size)))
+
+def generate_equals(size):
+
+    code.append((compare_equals, size))
+
+def generate_not_equals(size):
+
+    code.append((compare_not_equals, size))
+
+def generate_if():
+
+    offset = len(code)
+    code.append([branch_if_false, None])
+    return offset
+
+def generate_target(address):
+
+    offset = len(code) - address
+    code[address][1] = offset
+
+def generate_branch(address):
+
+    offset = address - (len(code) + 1)
+    code.append((branch, offset))
+
+def generate_load_local(offset, size):
+
+    code.append((load_local, (offset, size)))
+
+def generate_load_global(offset, size):
+
+    code.append((load_global, (offset, size)))
+
+def generate_assign_local(offset, size):
+
+    code.append((assign_local, (offset, size)))
+
+def generate_assign_global(offset, size):
+
+    code.append((assign_global, (offset, size)))

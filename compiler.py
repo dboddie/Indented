@@ -19,9 +19,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import string, sys
-import tokeniser
+import pprint, string, sys
+import generator, tokeniser
 from tokeniser import read_token
+
+# Token handling - lists of incoming tokens and those tentatively processed
 
 tokens = []
 used = []
@@ -30,10 +32,11 @@ used = []
 
 global_variables = []
 local_variables = []
+current_size = 0
 
-def allocate_local(name, type):
+# Defined functions
 
-    local_variables.append((name, type))
+functions = []
 
 # Constant handling
 
@@ -49,11 +52,15 @@ def is_constant(token):
 
 def get_size(token):
 
+    global current_size
+    
     if is_number(token):
-        return True
+        current_size = 4
+        return current_size
     
     if is_string(token):
-        return True
+        current_size = len(token) - 2
+        return current_size
     
     raise SyntaxError, "Unknown size for constant '%s' at line %i." % (token, tokeniser.line)
 
@@ -98,19 +105,26 @@ def is_variable(token):
     
     return True
 
-def find_variable(token):
+def find_local_variable(token):
 
-    for name, type in local_variables:
+    index = 0
+    for name, size in local_variables:
         if name == token:
             print "local variable", token
-            return True
+            return index
+        index += size
     
-    for name, type in global_variables:
+    return -1
+
+def find_global_variable(token):
+
+    for name, size in global_variables:
         if name == token:
             print "global variable", token
-            return True
+            return index
+        index += size
     
-    return False
+    return -1
 
 def get_token(stream):
 
@@ -180,11 +194,37 @@ def parse_control(stream):
     if token == "if":
         if parse_expression(stream):
             print "expression"
+            
+            # Insert a placeholder branch instruction.
+            address = generator.generate_if()
+            
             if parse_body(stream):
                 print "if"
+                # Fill in the branch offset.
+                generator.generate_target(address)
                 return True
         
         raise SyntaxError, "Invalid if structure at line %i." % tokeniser.line
+    
+    elif token == "while":
+    
+        loop_address = len(generator.code)
+        
+        if parse_expression(stream):
+            print "expression"
+            
+            # Insert a placeholder branch instruction.
+            address = generator.generate_if()
+            
+            if parse_body(stream):
+                print "while"
+                # Generate a branch to the condition code.
+                generator.generate_branch(loop_address)
+                # Fill in the branch offset.
+                generator.generate_target(address)
+                return True
+        
+        raise SyntaxError, "Invalid while structure at line %i." % tokeniser.line
     
     put_tokens(top)
     return False
@@ -207,18 +247,20 @@ def parse_dedent(stream):
 
 def parse_definition(stream):
 
-    # Clear the list of local variables.
-    local_variables[:] = []
-    
     top = len(used)
     token = get_token(stream)
     
     if token == "def":
     
+        # Clear the list of local variables.
+        local_variables[:] = []
+        
         token = get_token(stream)
         if not is_function_name(token):
             raise SyntaxError, "Invalid function name '%s' at line %i." % (
                 token, tokeniser.line)
+        
+        function_name = token
         
         # Read the parameters, appending the names and types to the list of
         # local variables.
@@ -248,6 +290,9 @@ def parse_definition(stream):
         if not parse_body(stream):
             raise SyntaxError, "Invalid function definition at line %i." % tokeniser.line
         
+        # Append the function details to the list of definitions, taking a copy
+        # of the local variables.
+        functions.append((function_name, local_variables[:]))
         return True
     
     else:
@@ -277,15 +322,11 @@ def parse_expression(stream):
         # Record the token index before each potential operation.
         top = len(used)
         
-        if not parse_operator(stream):
+        if not parse_operation(stream):
             # Not an operator, so back out of the operation, but allow the
             # expression. The operator function should have pushed tokens back
             # on the stack.
             break
-        
-        if not parse_operand(stream):
-            # Not a value, but one was expected, so report an error.
-            raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
     
     return True
 
@@ -322,46 +363,51 @@ def parse_operand(stream):
     
     if parse_value(stream):
         return True
-    elif parse_variable(stream, define = False):
+    elif parse_variable(stream):
         return True
     #elif parse_function_call(stream):
     #    return True
     else:
         return False
 
-def parse_operator(stream):
+operators = ("==", "!=", "<", ">", "+", "-")
 
-    '<operator> = "==" | "!=" | "<" | ">" | "+" | "-"'
+def parse_operation(stream):
+
+    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" <operand>'
     
     top = len(used)
     token = get_token(stream)
     
+    if token not in operators:
+        put_tokens(top)
+        return False
+    
+    if not parse_operand(stream):
+        # Not a value, but one was expected, so report an error.
+        raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
+    
     if token == "==":
         print "equals", token
-        return True
+        generator.generate_equals(current_size)
     
     elif token == "!=":
         print "not equals", token
-        return True
+        generator.generate_not_equals(current_size)
     
     elif token == "<":
         print "less than", token
-        return True
     
     elif token == ">":
         print "greater than", token
-        return True
     
     elif token == "+":
         print "add", token
-        return True
     
     elif token == "-":
         print "subtract", token
-        return True
     
-    put_tokens(top)
-    return False
+    return True
 
 def parse_program(stream):
 
@@ -401,25 +447,49 @@ def parse_statement(stream):
     "<statement> = <expression> <separator>"
     
     top = len(used)
+    assignment = False
     
     # The statement may be an assignment.
-    if parse_variable(stream, define = True):
+    var_token = get_token(stream)
+    if is_variable(var_token):
     
         token = get_token(stream)
-        if token == "=":
+        if token == tokeniser.assignment_token:
             print "assignment"
+            assignment = True
         else:
             put_tokens(top)
     
+    # The (rest of the) statement is an expression.
     if not parse_expression(stream):
         put_tokens(top)
         return False
     
-    if parse_separator(stream):
-        return True
-    else:
+    if not parse_separator(stream):
         put_tokens(top)
         return False
+    
+    if assignment:
+    
+        index = find_local_variable(var_token)
+        if index != -1:
+            name, size = local_variables[index]
+            generator.generate_assign_local(index, size)
+            return True
+        
+        index = find_global_variable(var_token)
+        if index != -1:
+            name, size = global_variables[index]
+            generator.generate_assign_global(index, size)
+            return True
+        
+        print "define", var_token
+        ### We need a way to determine if the variable is local or global.
+        local_variables.append((var_token, current_size))
+        index = find_local_variable(var_token)
+        generator.generate_assign_local(index, current_size)
+    
+    return True
 
 def parse_value(stream):
 
@@ -430,6 +500,7 @@ def parse_value(stream):
     
     if is_number(token):
         print "constant", token
+        generator.generate_number(token, get_size(token))
         return True
     
     elif is_string(token):
@@ -440,10 +511,8 @@ def parse_value(stream):
         put_tokens(top)
         return False
 
-def parse_variable(stream, define):
+def parse_variable(stream):
 
-    global local_variables
-    
     top = len(used)
     token = get_token(stream)
     
@@ -451,17 +520,20 @@ def parse_variable(stream, define):
         put_tokens(top)
         return False
     
-    if find_variable(token):
+    index = find_local_variable(token)
+    if index != -1:
+        name, size = local_variables[index]
+        generator.generate_load_local(index, size)
         return True
     
-    if define:
-        print "define", token
-        ### We need a way to determine if the variable is local or global.
-        local_variables.append((token, None))
+    index = find_global_variable(token)
+    if index != -1:
+        name, size = global_variables[index]
+        generator.generate_load_global(index, size)
         return True
-    else:
-        put_tokens(top)
-        return False
+    
+    put_tokens(top)
+    return False
 
 
 if __name__ == "__main__":
@@ -476,3 +548,7 @@ if __name__ == "__main__":
         parse_program(stream)
     except SyntaxError as exception:
         sys.stderr.write(str(exception) + "\n")
+        sys.exit(1)
+    
+    print functions
+    pprint.pprint(generator.code)

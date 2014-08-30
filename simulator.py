@@ -32,3 +32,34 @@ def allocate_local_stack_space(value):
     global stack_pointer
     stack_pointer += value
 
+def load_number(info):
+
+    value, size = value
+
+def compare_equals(value):
+
+    pass
+
+def compare_not_equals(value):
+
+    pass
+
+def branch_if_false(offset):
+
+    pass
+
+def branch(offset):
+
+    pass
+
+def load_local(value):
+
+    offset, size = value
+
+def load_global(value):
+
+    offset, size = value
+
+def assign_local(info):
+
+    offset, size = info
