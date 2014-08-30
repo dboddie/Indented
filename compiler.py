@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import sys
+import string, sys
 import tokeniser
 from tokeniser import read_token
 
@@ -68,6 +68,35 @@ def is_string(token):
 
     if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
         return True
+
+variable_chars = string.letters + string.digits + "_"
+
+def is_variable(token):
+
+    if is_number(token):
+        return False
+    
+    i = 0
+    while i < len(token):
+        if token[i] not in variable_chars:
+            return False
+        i += 1
+    
+    return True
+
+def find_variable(token):
+
+    for name, type in local_variables:
+        if name == token:
+            print "local variable", token
+            return True
+    
+    for name, type in global_variables:
+        if name == token:
+            print "global variable", token
+            return True
+    
+    return False
 
 def get_token(stream):
 
@@ -157,7 +186,7 @@ def parse_operand(stream):
     
     if parse_value(stream):
         return True
-    elif parse_variable(stream):
+    elif parse_variable(stream, define = False):
         return True
     #elif parse_function_call(stream):
     #    return True
@@ -228,6 +257,16 @@ def parse_statement(stream):
     
     top = len(used)
     
+    # The statement may be an assignment.
+    if parse_variable(stream, define = True):
+    
+        token = get_token(stream)
+        if token == "=":
+            print "assignment"
+        else:
+            put_tokens(top)
+            return False
+    
     if not parse_expression(stream):
         put_tokens(top)
         return False
@@ -257,23 +296,27 @@ def parse_value(stream):
         put_tokens(top)
         return False
 
-def parse_variable(stream):
+def parse_variable(stream, define):
 
+    global local_variables
+    
     top = len(used)
     token = get_token(stream)
     
-    for name, type in local_variables:
-        if name == token:
-            print "local variable", token
-            return True
+    if not is_variable(token):
+        put_tokens(top)
+        return False
     
-    for name, type in global_variables:
-        if name == token:
-            print "global variable", token
-            return True
+    if find_variable(token):
+        return True
     
-    put_tokens(top)
-    return False
+    if define:
+        print "define", token
+        local_variables.append((token, None))
+        return True
+    else:
+        put_tokens(top)
+        return False
 
 
 if __name__ == "__main__":
