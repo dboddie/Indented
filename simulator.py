@@ -44,6 +44,30 @@ def compare_not_equals(value):
 
     pass
 
+def compare_less_than(value):
+
+    pass
+
+def compare_greater_than(value):
+
+    pass
+
+def add(value):
+
+    pass
+
+def subtract(value):
+
+    pass
+
+def multiply(value):
+
+    pass
+
+def divide(value):
+
+    pass
+
 def branch_if_false(offset):
 
     pass

@@ -112,9 +112,19 @@ def find_local_variable(token):
         if name == token:
             print "local variable", token
             return index
-        index += size
+        index += 1
     
     return -1
+
+def local_variable_offset(index):
+
+    offset = 0
+    while index > 0:
+        index -= 1
+        name, size = local_variables[index]
+        offset += size
+    
+    return offset
 
 def find_global_variable(token):
 
@@ -122,9 +132,19 @@ def find_global_variable(token):
         if name == token:
             print "global variable", token
             return index
-        index += size
+        index += 1
     
     return -1
+
+def global_variable_offset(index):
+
+    offset = 0
+    while index > 0:
+        index -= 1
+        name, size = global_variables[index]
+        offset += size
+    
+    return offset
 
 def get_token(stream):
 
@@ -250,6 +270,9 @@ def parse_definition(stream):
     top = len(used)
     token = get_token(stream)
     
+    # Record the start of the generated code.
+    code_start = len(generator.code)
+    
     if token == "def":
     
         # Clear the list of local variables.
@@ -292,11 +315,14 @@ def parse_definition(stream):
         
         # Append the function details to the list of definitions, taking a copy
         # of the local variables.
-        functions.append((function_name, local_variables[:]))
+        code = generator.code[code_start:]
+        generator.discard_code(code_start)
+        functions.append((function_name, local_variables[:], code))
         return True
     
     else:
         put_tokens(top)
+        generator.discard_code(code_start)
         return False
 
 def parse_eof(stream):
@@ -370,11 +396,11 @@ def parse_operand(stream):
     else:
         return False
 
-operators = ("==", "!=", "<", ">", "+", "-")
+operators = ("==", "!=", "<", ">", "+", "-", "*", "/")
 
 def parse_operation(stream):
 
-    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" <operand>'
+    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" <operand>'
     
     top = len(used)
     token = get_token(stream)
@@ -397,15 +423,27 @@ def parse_operation(stream):
     
     elif token == "<":
         print "less than", token
+        generator.generate_less_than(current_size)
     
     elif token == ">":
         print "greater than", token
+        generator.generate_greater_than(current_size)
     
     elif token == "+":
         print "add", token
+        generator.generate_add(current_size)
     
     elif token == "-":
         print "subtract", token
+        generator.generate_subtract(current_size)
+    
+    elif token == "*":
+        print "multiply", token
+        generator.generate_multiply(current_size)
+    
+    elif token == "/":
+        print "divide", token
+        generator.generate_divide(current_size)
     
     return True
 
@@ -474,20 +512,23 @@ def parse_statement(stream):
         index = find_local_variable(var_token)
         if index != -1:
             name, size = local_variables[index]
-            generator.generate_assign_local(index, size)
+            offset = local_variable_offset(index)
+            generator.generate_assign_local(offset, size)
             return True
         
         index = find_global_variable(var_token)
         if index != -1:
             name, size = global_variables[index]
-            generator.generate_assign_global(index, size)
+            offset = global_variable_offset(index)
+            generator.generate_assign_global(offset, size)
             return True
         
         print "define", var_token
         ### We need a way to determine if the variable is local or global.
         local_variables.append((var_token, current_size))
         index = find_local_variable(var_token)
-        generator.generate_assign_local(index, current_size)
+        offset = local_variable_offset(index)
+        generator.generate_assign_local(offset, current_size)
     
     return True
 
@@ -523,13 +564,15 @@ def parse_variable(stream):
     index = find_local_variable(token)
     if index != -1:
         name, size = local_variables[index]
-        generator.generate_load_local(index, size)
+        offset = local_variable_offset(index)
+        generator.generate_load_local(offset, size)
         return True
     
     index = find_global_variable(token)
     if index != -1:
         name, size = global_variables[index]
-        generator.generate_load_global(index, size)
+        offset = global_variable_offset(index)
+        generator.generate_load_global(offset, size)
         return True
     
     put_tokens(top)
@@ -550,5 +593,5 @@ if __name__ == "__main__":
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
     
-    print functions
+    pprint.pprint(functions)
     pprint.pprint(generator.code)

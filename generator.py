@@ -24,6 +24,10 @@ from tokeniser import eof_token, read_token
 
 code = []
 
+def discard_code(address):
+
+    code[:] = code[:address]
+
 def generate_locals(local_variables):
 
     code = []
@@ -48,6 +52,30 @@ def generate_equals(size):
 def generate_not_equals(size):
 
     code.append((compare_not_equals, size))
+
+def generate_less_than(size):
+
+    code.append((compare_less_than, size))
+
+def generate_greater_than(size):
+
+    code.append((compare_greater_than, size))
+
+def generate_add(size):
+
+    code.append((add, size))
+
+def generate_subtract(size):
+
+    code.append((subtract, size))
+
+def generate_multiply(size):
+
+    code.append((multiply, size))
+
+def generate_divide(size):
+
+    code.append((divide, size))
 
 def generate_if():
 

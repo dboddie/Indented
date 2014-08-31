@@ -1,0 +1,5 @@
+x = 0
+a = 0
+while x != 0
+    a = a * x
+    x = x - 1
