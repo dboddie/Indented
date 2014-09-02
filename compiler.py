@@ -42,6 +42,9 @@ functions = []
 
 def is_constant(token):
 
+    if is_boolean(token):
+        return True
+    
     if is_number(token):
         return True
     
@@ -54,6 +57,10 @@ def get_size(token):
 
     global current_size
     
+    if is_boolean(token):
+        current_size = 1
+        return current_size
+    
     if is_number(token):
         current_size = 4
         return current_size
@@ -63,6 +70,10 @@ def get_size(token):
         return current_size
     
     raise SyntaxError, "Unknown size for constant '%s' at line %i." % (token, tokeniser.line)
+
+def is_boolean(token):
+
+    return token == "True" or token == "False"
 
 def is_function_name(token):
 
@@ -477,6 +488,8 @@ def parse_operation(stream):
 
     '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" <operand>'
     
+    global current_size
+    
     top = len(used)
     token = get_token(stream)
     
@@ -491,18 +504,22 @@ def parse_operation(stream):
     if token == "==":
         print "equals", token
         generator.generate_equals(current_size)
+        current_size = 1
     
     elif token == "!=":
         print "not equals", token
         generator.generate_not_equals(current_size)
+        current_size = 1
     
     elif token == "<":
         print "less than", token
         generator.generate_less_than(current_size)
+        current_size = 1
     
     elif token == ">":
         print "greater than", token
         generator.generate_greater_than(current_size)
+        current_size = 1
     
     elif token == "+":
         print "add", token

@@ -23,6 +23,9 @@ current_frame = 0
 stack_pointer = 0
 stack_pointer_copy = 0
 
+true = 255
+false = 0
+
 def save_local_stack_pointer(value):
 
     global stack_pointer, stack_pointer_copy
@@ -53,7 +56,15 @@ def load_number(info):
 
 def compare_equals(size):
 
-    pass
+    i = size
+    while i > 0:
+        if stack[stack_pointer - i] != stack[stack_pointer - size - i]:
+            free_stack_space(size * 2)
+            push_byte(false)
+        i -= 1
+    
+    free_stack_space(size * 2)
+    push_byte(true)
 
 def compare_not_equals(value):
 
