@@ -1,0 +1,9 @@
+def factorial x = 0
+    a = 0
+    while x != 0
+        a = a * x
+        x = x - 1
+
+A = factorial 1
+B = factorial 2
+C = factorial 3

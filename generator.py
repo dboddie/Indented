@@ -108,3 +108,32 @@ def generate_assign_local(offset, size):
 def generate_assign_global(offset, size):
 
     code.append((assign_global, (offset, size)))
+
+def generate_discard_value(size):
+
+    code.append((free_stack_space, size))
+
+def generate_return():
+
+    code.append((function_return, None))
+
+def generate_enter_frame():
+
+    # Push the current frame register onto the value stack.
+    code.append((load_current_frame_address, None))
+    # Put the stack top address in the current frame register.
+    code.append((store_stack_top_in_current_frame, None))
+
+def generate_function_call(address, size):
+
+    # Allocate enough space for the local variables.
+    code.append((allocate_stack_space, size))
+    code.append((function_call, address))
+
+def generate_exit_frame(size):
+
+    # Pop bytes from the value stack that correspond to the parameters and
+    # local variables.
+    code.append((free_stack_space, size))
+    # Restore the previous frame address from the stack.
+    code.append((pop_current_frame_address, None))

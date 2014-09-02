@@ -28,13 +28,13 @@ from tokeniser import read_token
 tokens = []
 used = []
 
-# Variable handling
+# Variable and type definitions
 
 global_variables = []
 local_variables = []
 current_size = 0
 
-# Defined functions
+# Function definitions
 
 functions = []
 
@@ -89,6 +89,8 @@ def is_string(token):
 
     if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
         return True
+
+# Variable handling
 
 variable_chars = string.letters + string.digits + "_"
 
@@ -145,6 +147,30 @@ def global_variable_offset(index):
         offset += size
     
     return offset
+
+# Function handling
+
+def find_function(token):
+
+    index = 0
+    for name, parameters, variables, code in functions:
+        if name == token:
+            return index
+        index += 1
+    
+    return -1
+
+def function_address(token):
+
+    address = 0
+    for name, parameters, variables, code in functions:
+        if name == token:
+            return address
+        address += len(code)
+    
+    return -1
+
+# Token handling
 
 def get_token(stream):
 
@@ -275,7 +301,8 @@ def parse_definition(stream):
     
     if token == "def":
     
-        # Clear the list of local variables.
+        # Transfer the list of local variables to the global list.
+        global_variables[:] = local_variables
         local_variables[:] = []
         
         token = get_token(stream)
@@ -284,6 +311,7 @@ def parse_definition(stream):
                 token, tokeniser.line)
         
         function_name = token
+        parameters = []
         
         # Read the parameters, appending the names and types to the list of
         # local variables.
@@ -309,15 +337,21 @@ def parse_definition(stream):
                     name, tokeniser.line)
             
             local_variables.append((name, get_size(token)))
+            parameters.append((name, get_size(token)))
         
         if not parse_body(stream):
             raise SyntaxError, "Invalid function definition at line %i." % tokeniser.line
+        
+        generator.generate_return()
         
         # Append the function details to the list of definitions, taking a copy
         # of the local variables.
         code = generator.code[code_start:]
         generator.discard_code(code_start)
-        functions.append((function_name, local_variables[:], code))
+        functions.append((function_name, parameters, local_variables[:], code))
+        
+        # Restore the list of local variables.
+        local_variables[:] = global_variables
         return True
     
     else:
@@ -345,15 +379,56 @@ def parse_expression(stream):
     
     while True:
     
-        # Record the token index before each potential operation.
-        top = len(used)
-        
         if not parse_operation(stream):
             # Not an operator, so back out of the operation, but allow the
             # expression. The operator function should have pushed tokens back
             # on the stack.
             break
     
+    return True
+
+def parse_function_call(stream):
+
+    '<function call> = <name> [<argument>+]'
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    index = find_function(token)
+    if index == -1:
+        put_tokens(top)
+        return False
+    
+    # Generate code to record the address of the top of the value stack in a
+    # frame base address register, pushing the previous frame base address onto
+    # the stack so that it can be recovered later.
+    generator.generate_enter_frame()
+    
+    function_name, parameters, variables, code = functions[index]
+    total_size = 0
+    
+    for name, size in parameters:
+    
+        if not parse_expression(stream):
+            raise SyntaxError, "Invalid argument to function '%s' at line %i.\n" % (token, tokeniser.line)
+        
+        if current_size != size:
+            raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (token, tokeniser.line)
+        
+        total_size += size
+    
+    total_var_size = 0
+    for name, size in variables:
+        total_var_size += size
+    
+    address = function_address(function_name)
+    print "function call", function_name, address
+    generator.generate_function_call(address, total_var_size)
+    
+    ### Handle return values.
+    
+    # Restore the address of the frame for the calling scope.
+    generator.generate_exit_frame(total_size)
     return True
 
 def parse_indent(stream):
@@ -391,8 +466,8 @@ def parse_operand(stream):
         return True
     elif parse_variable(stream):
         return True
-    #elif parse_function_call(stream):
-    #    return True
+    elif parse_function_call(stream):
+        return True
     else:
         return False
 
@@ -485,6 +560,8 @@ def parse_statement(stream):
     "<statement> = <expression> <separator>"
     
     top = len(used)
+    address = len(generator.code)
+    
     assignment = False
     
     # The statement may be an assignment.
@@ -497,14 +574,19 @@ def parse_statement(stream):
             assignment = True
         else:
             put_tokens(top)
+    else:
+        put_tokens(top)
     
     # The (rest of the) statement is an expression.
+    
     if not parse_expression(stream):
         put_tokens(top)
+        generator.discard_code(address)
         return False
     
     if not parse_separator(stream):
         put_tokens(top)
+        generator.discard_code(address)
         return False
     
     if assignment:
@@ -529,6 +611,10 @@ def parse_statement(stream):
         index = find_local_variable(var_token)
         offset = local_variable_offset(index)
         generator.generate_assign_local(offset, current_size)
+    
+    else:
+        # Discard the resulting value on the top of the stack.
+        generator.generate_discard_value(current_size)
     
     return True
 
@@ -593,5 +679,11 @@ if __name__ == "__main__":
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
     
+    print "Functions:"
     pprint.pprint(functions)
+    
+    print "Main variables:"
+    pprint.pprint(local_variables)
+    
+    print "Main code:"
     pprint.pprint(generator.code)
