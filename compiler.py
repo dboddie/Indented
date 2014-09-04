@@ -37,6 +37,8 @@ current_size = 0
 # Function definitions
 
 functions = []
+in_function = False
+return_size = 0
 
 # Constant handling
 
@@ -164,7 +166,7 @@ def global_variable_offset(index):
 def find_function(token):
 
     index = 0
-    for name, parameters, variables, code in functions:
+    for name, parameters, variables, code, rsize in functions:
         if name == token:
             return index
         index += 1
@@ -174,7 +176,7 @@ def find_function(token):
 def function_address(token):
 
     address = 0
-    for name, parameters, variables, code in functions:
+    for name, parameters, variables, code, rsize in functions:
         if name == token:
             return address
         address += len(code)
@@ -225,6 +227,8 @@ def parse_body(stream):
     
         if parse_control(stream):
             print "control"
+        elif in_function and parse_return(stream):
+            print "return"
         elif parse_statement(stream):
             print "statement"
         elif parse_separator(stream):
@@ -304,6 +308,8 @@ def parse_dedent(stream):
 
 def parse_definition(stream):
 
+    global in_function, return_size
+    
     top = len(used)
     token = get_token(stream)
     
@@ -351,11 +357,17 @@ def parse_definition(stream):
             parameters.append((name, get_size(token)))
         
         # Tentatively add the function to the list of definitions.
-        functions.append((function_name, parameters, local_variables[:], None))
+        functions.append((function_name, parameters, local_variables[:], None, 0))
+        
+        # Indicate that we are parsing a function and reset the default return
+        # size.
+        in_function = True
+        return_size = 0
         
         if not parse_body(stream):
             raise SyntaxError, "Invalid function definition at line %i." % tokeniser.line
         
+        in_function = False
         generator.generate_return()
         
         # Append the function details to the list of definitions, taking a copy
@@ -365,7 +377,7 @@ def parse_definition(stream):
         
         # Replace the placeholder definition with the full one.
         functions.pop()
-        functions.append((function_name, parameters, local_variables[:], code))
+        functions.append((function_name, parameters, local_variables[:], code, return_size))
         
         # Restore the list of local variables.
         local_variables[:] = global_variables
@@ -424,7 +436,7 @@ def parse_function_call(stream):
     #   ^------------------/
     generator.generate_enter_frame()
     
-    function_name, parameters, variables, code = functions[index]
+    function_name, parameters, variables, code, rsize = functions[index]
     total_size = 0
     
     # Parse the arguments corresponding to the function parameters. The result
@@ -453,12 +465,14 @@ def parse_function_call(stream):
     
     ### Handle return values.
     
-    # Call the function then pop the parameters and local variables from the
-    # stack, and restore the address of the frame for the calling scope.
-    #    <local variables> <parent frame address> <arguments> <local variables>
+    # Call the function then pop the parameters, local variables and return
+    # value from the stack, restore the address of the frame for the calling
+    # scope and leaving the return value on the stack.
+    #    <local vars> <parent frame address> <arguments> <local vars> <value>
     #   ^------------------/
-    # -> <local variables>
-    generator.generate_function_call(function_name, total_var_size, total_size)
+    # -> <local vars> <value>
+    generator.generate_function_call(function_name, total_var_size, total_size,
+                                     rsize)
     
     return True
 
@@ -578,6 +592,26 @@ def parse_program(stream):
             print "separator (blank)"
         else:
             raise SyntaxError, "Unexpected input at line %i." % tokeniser.line
+
+def parse_return(stream):
+
+    '<return> = "return" <expression>'
+    
+    global return_size
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != "return":
+        put_tokens(top)
+        return False
+    
+    if not parse_expression(stream):
+        raise SyntaxError, "Invalid return from function at line %i." % tokeniser.line
+    
+    return_size = current_size
+    generator.generate_return()
+    return True
 
 def parse_separator(stream):
 

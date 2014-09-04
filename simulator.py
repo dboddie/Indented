@@ -130,7 +130,7 @@ def assign_local(info):
 
     offset, size = info
 
-def function_return():
+def function_return(size):
 
     pass
 
