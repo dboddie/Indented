@@ -350,6 +350,9 @@ def parse_definition(stream):
             local_variables.append((name, get_size(token)))
             parameters.append((name, get_size(token)))
         
+        # Tentatively add the function to the list of definitions.
+        functions.append((function_name, parameters, local_variables[:], None))
+        
         if not parse_body(stream):
             raise SyntaxError, "Invalid function definition at line %i." % tokeniser.line
         
@@ -359,6 +362,9 @@ def parse_definition(stream):
         # of the local variables.
         code = generator.code[code_start:]
         generator.discard_code(code_start)
+        
+        # Replace the placeholder definition with the full one.
+        functions.pop()
         functions.append((function_name, parameters, local_variables[:], code))
         
         # Restore the list of local variables.
@@ -413,11 +419,18 @@ def parse_function_call(stream):
     # Generate code to record the address of the top of the value stack in a
     # frame base address register, pushing the previous frame base address onto
     # the stack so that it can be recovered later.
+    #    <local variables>
+    # -> <local variables> <parent frame address>
+    #   ^------------------/
     generator.generate_enter_frame()
     
     function_name, parameters, variables, code = functions[index]
     total_size = 0
     
+    # Parse the arguments corresponding to the function parameters. The result
+    # at run-time will be a series of values stored on the stack.
+    #  <local variables> <parent frame address> <arguments>
+    # ^------------------/
     for name, size in parameters:
     
         if not parse_expression(stream):
@@ -428,18 +441,25 @@ def parse_function_call(stream):
         
         total_size += size
     
+    # Use the previously stored information about the local variables to
+    # determine how much space should be allocated on the stack.
+    #  <local variables> <parent frame address> <arguments> <local variables>
+    # ^------------------/
     total_var_size = 0
     for name, size in variables:
         total_var_size += size
     
-    address = function_address(function_name)
-    print "function call", function_name, address
-    generator.generate_function_call(address, total_var_size)
+    print "function call", function_name
     
     ### Handle return values.
     
-    # Restore the address of the frame for the calling scope.
-    generator.generate_exit_frame(total_size)
+    # Call the function then pop the parameters and local variables from the
+    # stack, and restore the address of the frame for the calling scope.
+    #    <local variables> <parent frame address> <arguments> <local variables>
+    #   ^------------------/
+    # -> <local variables>
+    generator.generate_function_call(function_name, total_var_size, total_size)
+    
     return True
 
 def parse_indent(stream):

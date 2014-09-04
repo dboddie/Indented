@@ -28,18 +28,6 @@ def discard_code(address):
 
     code[:] = code[:address]
 
-def generate_locals(local_variables):
-
-    code = []
-    code.append((save_local_stack_pointer, None))
-    
-    offset = 0
-    for name, type in local_variables:
-    
-        code.append((allocate_local_stack_space, type.size))
-    
-    return code
-
 def generate_number(token, size):
 
     value = int(token)
@@ -124,16 +112,14 @@ def generate_enter_frame():
     # Put the stack top address in the current frame register.
     code.append((store_stack_top_in_current_frame, None))
 
-def generate_function_call(address, size):
+def generate_function_call(name, var_size, param_size):
 
     # Allocate enough space for the local variables.
-    code.append((allocate_stack_space, size))
-    code.append((function_call, address))
-
-def generate_exit_frame(size):
-
+    code.append((allocate_stack_space, var_size))
+    code.append((function_call, name))
+    
     # Pop bytes from the value stack that correspond to the parameters and
     # local variables.
-    code.append((free_stack_space, size))
+    code.append((free_stack_space, var_size + param_size))
     # Restore the previous frame address from the stack.
     code.append((pop_current_frame_address, None))

@@ -26,16 +26,6 @@ stack_pointer_copy = 0
 true = 255
 false = 0
 
-def save_local_stack_pointer(value):
-
-    global stack_pointer, stack_pointer_copy
-    stack_pointer_copy = stack_pointer
-
-def allocate_local_stack_space(value):
-
-    global stack_pointer
-    stack_pointer += value
-
 def push_byte(value):
 
     global stack_pointer
@@ -56,9 +46,12 @@ def load_number(info):
 
 def compare_equals(size):
 
-    i = size
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = size - 1
     while i > 0:
-        if stack[stack_pointer - i] != stack[stack_pointer - size - i]:
+        if stack[ptr1 + i] != stack[ptr2 + i]:
             free_stack_space(size * 2)
             push_byte(false)
         i -= 1
@@ -66,9 +59,20 @@ def compare_equals(size):
     free_stack_space(size * 2)
     push_byte(true)
 
-def compare_not_equals(value):
+def compare_not_equals(size):
 
-    pass
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = size - 1
+    while i > 0:
+        if stack[ptr1 + i] == stack[ptr2 + i]:
+            free_stack_space(size * 2)
+            push_byte(false)
+        i -= 1
+    
+    free_stack_space(size * 2)
+    push_byte(true)
 
 def compare_less_than(value):
 
@@ -80,7 +84,19 @@ def compare_greater_than(value):
 
 def add(value):
 
-    pass
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = size - 1
+    c = 0
+    while i > 0:
+        v = stack[ptr1 + i] + stack[ptr2 + i]
+        c = v / 256
+        v = v % 256
+        stack[ptr1 + i] = v + c
+        i -= 1
+    
+    free_stack_space(size)
 
 def subtract(value):
 
@@ -118,15 +134,7 @@ def function_return():
 
     pass
 
-def push_value_top():
-
-    pass
-
 def function_call(name):
-
-    pass
-
-def pop_value_top():
 
     pass
 
