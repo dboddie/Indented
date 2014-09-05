@@ -99,7 +99,8 @@ def generate_assign_global(offset, size):
 
 def generate_discard_value(size):
 
-    code.append((free_stack_space, size))
+    if size > 0:
+        code.append((free_stack_space, size))
 
 def generate_return():
 
@@ -119,10 +120,12 @@ def generate_enter_frame():
     # variables in the current frame register.
     code.append((store_stack_top_in_current_frame, None))
 
-def generate_function_call(name, var_size, param_size):
+def generate_function_call(name, var_size):
 
     # Allocate enough space for the local variables.
-    code.append((allocate_stack_space, var_size))
+    if var_size > 0:
+        code.append((allocate_stack_space, var_size))
+    
     code.append((function_call, name))
 
 def generate_function_tidy(total_size, return_size):
@@ -137,4 +140,5 @@ def generate_function_tidy(total_size, return_size):
     # Copy the return value from the top of the stack to the top of the
     # parent frame. This will automatically include the size of the frame
     # address that was on the stack.
-    code.append((copy_value, (total_size, return_size)))
+    if return_size > 0:
+        code.append((copy_value, (total_size, return_size)))

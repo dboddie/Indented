@@ -1,8 +1,8 @@
 def is_zero x = 255
-    return x == 0
+    x == 0
 
 def is_not_zero x = 255
-    return x != 0
+    x != 0
 
 a = 123
 if is_zero a

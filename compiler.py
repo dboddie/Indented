@@ -438,7 +438,8 @@ def parse_function_call(stream):
     # -> <local variables> <return value>
     
     function_name, parameters, variables, code, rsize = functions[index]
-    generator.generate_allocate_stack_space(rsize)
+    if rsize > 0:
+        generator.generate_allocate_stack_space(rsize)
     
     # Generate code to record the address of the current frame in a frame base
     # address register, pushing the previous frame base address onto the stack
@@ -455,7 +456,7 @@ def parse_function_call(stream):
     #    <local vars> <return value> <parent frame addr>
     # -> <local vars> <return value> <parent frame addr> <arguments>
     
-    total_size = 0
+    total_param_size = 0
     
     for name, size in parameters:
     
@@ -465,7 +466,7 @@ def parse_function_call(stream):
         if current_size != size:
             raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (token, tokeniser.line)
         
-        total_size += size
+        total_param_size += size
     
     # Use the previously stored information about the local variables to
     # determine how much space should be allocated on the stack.
@@ -476,6 +477,8 @@ def parse_function_call(stream):
     for name, size in variables:
         total_var_size += size
     
+    total_var_size -= total_param_size
+    
     print "function call", function_name
     
     # Call the function then restore the address of the frame for the calling
@@ -483,7 +486,7 @@ def parse_function_call(stream):
     # return value.
     #    <local vars> <return value> <parent frame addr> <args> <local vars>
     
-    generator.generate_function_call(function_name, total_var_size, total_size)
+    generator.generate_function_call(function_name, total_var_size)
     
     # Note that the stack at this point will contain the following:
     # <local vars> <return value> <parent frame addr> <args> <local vars> <value>
@@ -493,7 +496,7 @@ def parse_function_call(stream):
     # child frame to the top of the parent frame, leaving the following:
     # <local vars> <return value>
     
-    generator.generate_function_tidy(total_var_size + total_size, rsize)
+    generator.generate_function_tidy(total_var_size + total_param_size, rsize)
     
     # Record the size of the return value to ensure that it is assigned or
     # discarded as necessary.
@@ -707,6 +710,9 @@ def parse_statement(stream):
             generator.generate_assign_global(offset, size)
             return True
         
+        if current_size == 0:
+            raise SyntaxError, "No value to assign at line %i." % tokeniser.line
+        
         print "define", var_token
         ### We need a way to determine if the variable is local or global.
         local_variables.append((var_token, current_size))
@@ -724,16 +730,21 @@ def parse_value(stream):
 
     "<value> = <number> | <string>"
     
+    global current_size
+    
     top = len(used)
     token = get_token(stream)
     
     if is_number(token):
         print "constant", token
-        generator.generate_number(token, get_size(token))
+        size = get_size(token)
+        generator.generate_number(token, size)
+        current_size = size
         return True
     
     elif is_string(token):
         print "constant", token
+        current_size = len(token) - 2
         return True
     
     else:
@@ -742,6 +753,8 @@ def parse_value(stream):
 
 def parse_variable(stream):
 
+    global current_size
+    
     top = len(used)
     token = get_token(stream)
     
@@ -754,6 +767,7 @@ def parse_variable(stream):
         name, size = local_variables[index]
         offset = local_variable_offset(index)
         generator.generate_load_local(offset, size)
+        current_size = size
         return True
     
     index = find_global_variable(token)
@@ -761,6 +775,7 @@ def parse_variable(stream):
         name, size = global_variables[index]
         offset = global_variable_offset(index)
         generator.generate_load_global(offset, size)
+        current_size = size
         return True
     
     put_tokens(top)
