@@ -420,6 +420,8 @@ def parse_function_call(stream):
 
     '<function call> = <name> [<argument>+]'
     
+    global current_size
+    
     top = len(used)
     token = get_token(stream)
     
@@ -428,21 +430,33 @@ def parse_function_call(stream):
         put_tokens(top)
         return False
     
-    # Generate code to record the address of the top of the value stack in a
-    # frame base address register, pushing the previous frame base address onto
-    # the stack so that it can be recovered later.
+    # Ensure that enough space is allocated on the stack for the return value,
+    # function arguments and local variables. To start with, we reserve space
+    # for the return value, effectively appending it to the current frame as a
+    # temporary value.
     #    <local variables>
-    # -> <local variables> <parent frame address>
-    #   ^------------------/
-    generator.generate_enter_frame()
+    # -> <local variables> <return value>
     
     function_name, parameters, variables, code, rsize = functions[index]
-    total_size = 0
+    generator.generate_allocate_stack_space(rsize)
+    
+    # Generate code to record the address of the current frame in a frame base
+    # address register, pushing the previous frame base address onto the stack
+    # so that it can be recovered later.
+    #    <local vars> <return value>
+    # -> <local vars> <return value> <parent frame addr>
+    #   ^----------------------------/                  ^
+    #                                      new frame address
+    
+    generator.generate_enter_frame()
     
     # Parse the arguments corresponding to the function parameters. The result
     # at run-time will be a series of values stored on the stack.
-    #  <local variables> <parent frame address> <arguments>
-    # ^------------------/
+    #    <local vars> <return value> <parent frame addr>
+    # -> <local vars> <return value> <parent frame addr> <arguments>
+    
+    total_size = 0
+    
     for name, size in parameters:
     
         if not parse_expression(stream):
@@ -455,24 +469,35 @@ def parse_function_call(stream):
     
     # Use the previously stored information about the local variables to
     # determine how much space should be allocated on the stack.
-    #  <local variables> <parent frame address> <arguments> <local variables>
-    # ^------------------/
+    #    <local vars> <return value> <parent frame addr> <args>
+    # -> <local vars> <return value> <parent frame addr> <args> <local vars>
+    
     total_var_size = 0
     for name, size in variables:
         total_var_size += size
     
     print "function call", function_name
     
-    ### Handle return values.
+    # Call the function then restore the address of the frame for the calling
+    # scope. Pop the local variables and arguments from the stack, leaving the
+    # return value.
+    #    <local vars> <return value> <parent frame addr> <args> <local vars>
     
-    # Call the function then pop the parameters, local variables and return
-    # value from the stack, restore the address of the frame for the calling
-    # scope and leaving the return value on the stack.
-    #    <local vars> <parent frame address> <arguments> <local vars> <value>
-    #   ^------------------/
-    # -> <local vars> <value>
-    generator.generate_function_call(function_name, total_var_size, total_size,
-                                     rsize)
+    generator.generate_function_call(function_name, total_var_size, total_size)
+    
+    # Note that the stack at this point will contain the following:
+    # <local vars> <return value> <parent frame addr> <args> <local vars> <value>
+    #                                                ^
+    #                                       frame base address
+    # We will recover the parent frame and copy the value from the top of the
+    # child frame to the top of the parent frame, leaving the following:
+    # <local vars> <return value>
+    
+    generator.generate_function_tidy(total_var_size + total_size, rsize)
+    
+    # Record the size of the return value to ensure that it is assigned or
+    # discarded as necessary.
+    current_size = rsize
     
     return True
 
@@ -597,6 +622,9 @@ def parse_return(stream):
 
     '<return> = "return" <expression>'
     
+    ### Handle value-less returns and ensure that all returns in a function
+    ### body consistently use the same type.
+    
     global return_size
     
     top = len(used)
@@ -605,6 +633,9 @@ def parse_return(stream):
     if token != "return":
         put_tokens(top)
         return False
+    
+    if not in_function:
+        raise SyntaxError, "Cannot use return from outside function at line %i." % tokeniser.line
     
     if not parse_expression(stream):
         raise SyntaxError, "Invalid return from function at line %i." % tokeniser.line

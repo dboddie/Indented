@@ -105,11 +105,18 @@ def generate_return():
 
     code.append((function_return, None))
 
+def generate_allocate_stack_space(size):
+
+    code.append((allocate_stack_space, size))
+
 def generate_enter_frame():
 
     # Push the current frame register onto the value stack.
     code.append((load_current_frame_address, None))
-    # Put the stack top address in the current frame register.
+    
+    # Put the stack top address, minus the frame address size (implied,
+    # depends on the implementation) and the number of bytes for the local
+    # variables in the current frame register.
     code.append((store_stack_top_in_current_frame, None))
 
 def generate_function_call(name, var_size, param_size):
@@ -117,9 +124,17 @@ def generate_function_call(name, var_size, param_size):
     # Allocate enough space for the local variables.
     code.append((allocate_stack_space, var_size))
     code.append((function_call, name))
+
+def generate_function_tidy(total_size, return_size):
+
+    # Pop bytes from the value stack that correspond to the parameters, local
+    # variables and return value.
+    code.append((free_stack_space, total_size + return_size))
     
-    # Pop bytes from the value stack that correspond to the parameters and
-    # local variables.
-    code.append((free_stack_space, var_size + param_size))
     # Restore the previous frame address from the stack.
     code.append((pop_current_frame_address, None))
+    
+    # Copy the return value from the top of the stack to the top of the
+    # parent frame. This will automatically include the size of the frame
+    # address that was on the stack.
+    code.append((copy_value, (total_size, return_size)))

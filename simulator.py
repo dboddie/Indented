@@ -22,6 +22,7 @@ stack = [0] * stack_size
 current_frame = 0
 stack_pointer = 0
 stack_pointer_copy = 0
+address_size = 2
 
 true = 255
 false = 0
@@ -87,9 +88,9 @@ def add(value):
     ptr2 = stack_pointer - size
     ptr1 = ptr2 - size
     
-    i = size - 1
+    i = 0
     c = 0
-    while i > 0:
+    while i < size:
         v = stack[ptr1 + i] + stack[ptr2 + i]
         c = v / 256
         v = v % 256
@@ -130,7 +131,7 @@ def assign_local(info):
 
     offset, size = info
 
-def function_return(size):
+def function_return(value):
 
     pass
 
@@ -140,20 +141,44 @@ def function_call(name):
 
 def load_current_frame_address():
 
-    pass
+    address = current_frame
+    i = 0
+    while i < address_size:
+        push_byte(address & 0xff)
+        address = address >> 8
+        i += 1
 
 def store_stack_top_in_current_frame():
 
-    pass
+    global current_frame
+    current_frame = stack_pointer
 
 def allocate_stack_space(size):
 
-    pass
+    global stack_pointer
+    stack_pointer += size
 
 def free_stack_space(size):
 
-    pass
+    global stack_pointer
+    stack_pointer -= size
 
 def pop_current_frame_address():
 
-    pass
+    global current_frame
+    address = 0
+    i = 0
+    while i < address_size:
+        address = (address << 8) | pop_byte()
+        i += 1
+    
+    current_frame = address
+
+def copy_value(offset, size):
+
+    src = offset + address_size
+    dest = -size
+    i = size - 1
+    while i >= 0:
+        stack[stack_pointer + dest + i] = stack[stack_pointer + src + i]
+        i -= 1
