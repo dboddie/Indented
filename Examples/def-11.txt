@@ -4,6 +4,4 @@ def factorial x = 0
     if x < 2
         return 1
 
-A = factorial 1
-B = factorial 2
-C = factorial 3
+C = factorial 2

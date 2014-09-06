@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pprint, string, sys
-import generator, tokeniser
+import generator, simulator, tokeniser
 from tokeniser import read_token
 
 # Token handling - lists of incoming tokens and those tentatively processed
@@ -39,6 +39,12 @@ current_size = 0
 functions = []
 in_function = False
 return_size = 0
+
+def debug_print(*args):
+    return
+    for arg in args:
+        print arg,
+    print
 
 # Constant handling
 
@@ -125,7 +131,7 @@ def find_local_variable(token):
     index = 0
     for name, size in local_variables:
         if name == token:
-            print "local variable", token
+            debug_print("local variable", token)
             return index
         index += 1
     
@@ -145,7 +151,7 @@ def find_global_variable(token):
 
     for name, size in global_variables:
         if name == token:
-            print "global variable", token
+            debug_print("global variable", token)
             return index
         index += 1
     
@@ -234,14 +240,14 @@ def parse_body(stream):
     while True:
     
         if parse_control(stream):
-            print "control"
+            debug_print("control")
         elif in_function and parse_return(stream):
-            print "return"
+            debug_print("return")
         elif parse_statement(stream):
-            print "statement"
+            debug_print("statement")
         elif parse_separator(stream):
             # Handle blank lines.
-            print "separator (blank)"
+            debug_print("separator (blank)")
         elif parse_dedent(stream):
             break
         else:
@@ -252,7 +258,7 @@ def parse_body(stream):
     if not has_body:
         return False
     
-    print "body"
+    debug_print("body")
     return True
 
 def parse_control(stream):
@@ -262,13 +268,13 @@ def parse_control(stream):
     
     if token == "if":
         if parse_expression(stream):
-            print "expression"
+            debug_print("expression")
             
             # Insert a placeholder branch instruction.
             address = generator.generate_if()
             
             if parse_body(stream):
-                print "if"
+                debug_print("if")
                 # Fill in the branch offset.
                 generator.generate_target(address)
                 return True
@@ -280,13 +286,13 @@ def parse_control(stream):
         loop_address = len(generator.code)
         
         if parse_expression(stream):
-            print "expression"
+            debug_print("expression")
             
             # Insert a placeholder branch instruction.
-            address = generator.generate_if()
+            address = generator.generate_while()
             
             if parse_body(stream):
-                print "while"
+                debug_print("while")
                 # Generate a branch to the condition code.
                 generator.generate_branch(loop_address)
                 # Fill in the branch offset.
@@ -405,18 +411,10 @@ def parse_definition(stream):
         generator.discard_code(code_start)
         
         # Write code to handle entry into the function. We can only do this
-        # after the body has been generated because we don't know the return
-        # type beforehand.
+        # after the body has been generated because we don't know the parameter
+        # types beforehand.
         
-        # Generate code to record the address of the current frame in a frame base
-        # address register, pushing the previous frame base address onto the stack
-        # so that it can be recovered later.
-        #    <local vars> <return value>
-        # -> <local vars> <return value> <parent frame addr>
-        #   ^----------------------------/                  ^
-        #                                      new frame address
-        
-        generator.generate_enter_frame(total_var_size)
+        generator.generate_enter_frame(total_param_size, total_var_size)
         
         # Append the generated code to the function's code.
         code = generator.code[code_start:] + code
@@ -489,6 +487,15 @@ def parse_function_call(stream):
     if rsize > 0:
         generator.generate_allocate_stack_space(rsize)
     
+    # Generate code to record the address of the current frame in a frame base
+    # address register, pushing the previous frame base address onto the stack
+    # so that it can be recovered later.
+    #    <local vars> <return value>
+    # -> <local vars> <return value> <parent frame addr>
+    #   ^----------------------------/
+    
+    generator.generate_push_parent_frame()
+    
     # Parse the arguments corresponding to the function parameters. The result
     # at run-time will be a series of values stored on the stack.
     #    <local vars> <return value> <parent frame addr>
@@ -511,7 +518,7 @@ def parse_function_call(stream):
     
     total_var_size = total_variable_size(variables) - total_param_size
     
-    print "function call", function_name
+    debug_print("function call", function_name)
     
     # Call the function then restore the address of the frame for the calling
     # scope. Pop the local variables and arguments from the stack, leaving the
@@ -586,39 +593,39 @@ def parse_operation(stream):
         raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
     
     if token == "==":
-        print "equals", token
+        debug_print("equals", token)
         generator.generate_equals(current_size)
         current_size = 1
     
     elif token == "!=":
-        print "not equals", token
+        debug_print("not equals", token)
         generator.generate_not_equals(current_size)
         current_size = 1
     
     elif token == "<":
-        print "less than", token
+        debug_print("less than", token)
         generator.generate_less_than(current_size)
         current_size = 1
     
     elif token == ">":
-        print "greater than", token
+        debug_print("greater than", token)
         generator.generate_greater_than(current_size)
         current_size = 1
     
     elif token == "+":
-        print "add", token
+        debug_print("add", token)
         generator.generate_add(current_size)
     
     elif token == "-":
-        print "subtract", token
+        debug_print("subtract", token)
         generator.generate_subtract(current_size)
     
     elif token == "*":
-        print "multiply", token
+        debug_print("multiply", token)
         generator.generate_multiply(current_size)
     
     elif token == "/":
-        print "divide", token
+        debug_print("divide", token)
         generator.generate_divide(current_size)
     
     return True
@@ -629,19 +636,27 @@ def parse_program(stream):
     
         if parse_control(stream):
             discard_tokens()
-            print "control"
+            debug_print("control")
         elif parse_definition(stream):
             discard_tokens()
-            print "definition"
+            debug_print("definition")
         elif parse_statement(stream):
             discard_tokens()
-            print "statement"
+            debug_print("statement")
         elif parse_separator(stream):
             # Handle blank lines.
             discard_tokens()
-            print "separator (blank)"
+            debug_print("separator (blank)")
         else:
             raise SyntaxError, "Unexpected input at line %i." % tokeniser.line
+    
+    generator.generate_end()
+    
+    # Insert code to reserve space for variables.
+    main_code = generator.code[:]
+    generator.discard_code(0)
+    generator.generate_allocate_stack_space(total_variable_size(local_variables))
+    generator.code += main_code
 
 def parse_return(stream):
 
@@ -674,10 +689,10 @@ def parse_separator(stream):
     "<separator> = <newline> | <eof>"
     
     if parse_newline(stream):
-        print "newline"
+        debug_print("newline")
         return True
     elif parse_eof(stream):
-        print "eof"
+        debug_print("eof")
         return True
     else:
         return False
@@ -697,7 +712,7 @@ def parse_statement(stream):
     
         token = get_token(stream)
         if token == tokeniser.assignment_token:
-            print "assignment"
+            debug_print("assignment")
             assignment = True
         else:
             put_tokens(top)
@@ -735,7 +750,7 @@ def parse_statement(stream):
         if current_size == 0:
             raise SyntaxError, "No value to assign at line %i." % tokeniser.line
         
-        print "define", var_token
+        debug_print("define", var_token)
         ### We need a way to determine if the variable is local or global.
         local_variables.append((var_token, current_size))
         index = find_local_variable(var_token)
@@ -758,14 +773,14 @@ def parse_value(stream):
     token = get_token(stream)
     
     if is_number(token):
-        print "constant", token
+        debug_print("constant", token)
         size = get_size(token)
         generator.generate_number(token, size)
         current_size = size
         return True
     
     elif is_string(token):
-        print "constant", token
+        debug_print("constant", token)
         current_size = len(token) - 2
         return True
     
@@ -806,11 +821,12 @@ def parse_variable(stream):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 2:
-        sys.stderr.write("Usage: %s <file>\n" % sys.argv[0])
+    if not 2 <= len(sys.argv) <= 3:
+        sys.stderr.write("Usage: %s [-r] <file>\n" % sys.argv[0])
         sys.exit(1)
     
-    stream = open(sys.argv[1])
+    stream = open(sys.argv[-1])
+    run = sys.argv[1] == "-r"
     
     try:
         parse_program(stream)
@@ -826,3 +842,16 @@ if __name__ == "__main__":
     
     print "Main code:"
     pprint.pprint(generator.code)
+    
+    if run:
+        print "Linking"
+        try:
+            generator.link(functions)
+        except KeyError as exception:
+            sys.stderr.write(str(exception) + "\n")
+            sys.exit(1)
+        
+        print "Loading"
+        simulator.load(generator.code)
+        print "Running"
+        simulator.run()

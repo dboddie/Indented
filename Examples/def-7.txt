@@ -1,8 +1,9 @@
 def factorial x = 0
     a = x
-    while x != 0
+    while x != 1
         x = x - 1
         a = a * x
+    return a
 
 A = factorial 1
 B = factorial 2

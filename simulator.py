@@ -26,6 +26,8 @@ stack_pointer = 0
 code = []
 program_counter = 0
 
+call_stack = []
+
 true = 255
 false = 0
 
@@ -39,13 +41,15 @@ def pop_byte():
 
     global stack_pointer
     stack_pointer -= 1
+    return stack[stack_pointer]
 
-def load_number(info):
+def load_number(value):
 
     value, size = value
     while size > 0:
         push_byte(value & 0xff)
         value = value >> 8
+        size -= 1
 
 def compare_equals(size):
 
@@ -67,25 +71,50 @@ def compare_not_equals(size):
     ptr2 = stack_pointer - size
     ptr1 = ptr2 - size
     
-    i = size - 1
-    while i > 0:
-        if stack[ptr1 + i] == stack[ptr2 + i]:
+    i = 0
+    while i < size:
+        if stack[ptr1 + i] != stack[ptr2 + i]:
             free_stack_space(size * 2)
-            push_byte(false)
+            push_byte(true)
+            return
+        i += 1
+    
+    free_stack_space(size * 2)
+    push_byte(false)
+
+def compare_less_than(size):
+
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = size - 1
+    while i >= 0:
+        if stack[ptr1 + i] < stack[ptr2 + i]:
+            free_stack_space(size * 2)
+            push_byte(true)
+            return
         i -= 1
     
     free_stack_space(size * 2)
-    push_byte(true)
+    push_byte(false)
 
-def compare_less_than(value):
+def compare_greater_than(size):
 
-    pass
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = size - 1
+    while i >= 0:
+        if stack[ptr1 + i] > stack[ptr2 + i]:
+            free_stack_space(size * 2)
+            push_byte(true)
+            return
+        i -= 1
+    
+    free_stack_space(size * 2)
+    push_byte(false)
 
-def compare_greater_than(value):
-
-    pass
-
-def add(value):
+def add(size):
 
     ptr2 = stack_pointer - size
     ptr1 = ptr2 - size
@@ -93,21 +122,61 @@ def add(value):
     i = 0
     c = 0
     while i < size:
-        v = stack[ptr1 + i] + stack[ptr2 + i]
+        v = stack[ptr1 + i] + stack[ptr2 + i] + c
         c = v / 256
         v = v % 256
-        stack[ptr1 + i] = v + c
+        stack[ptr1 + i] = v
         i -= 1
     
     free_stack_space(size)
 
-def subtract(value):
+def subtract(size):
 
-    pass
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = 0
+    c = 0
+    while i < size:
+        v = stack[ptr1 + i] - stack[ptr2 + i] + c
+        c = v / 256
+        v = v % 256
+        stack[ptr1 + i] = v
+        i += 1
+    
+    free_stack_space(size)
 
-def multiply(value):
+def multiply(size):
 
-    pass
+    ptr2 = stack_pointer - size
+    ptr1 = ptr2 - size
+    
+    i = 0
+    s1 = 0
+    total = 0
+    while i < size:
+        j = 0
+        s2 = 0
+        while j < size:
+            c = 0
+            v = stack[ptr1 + i] * stack[ptr2 + j] + c
+            total += v << (s1 + s2)
+            c = v / 256
+            v = v % 256
+            j += 1
+            s2 += 1
+        
+        i += 1
+        s1 += 1
+    
+    # Leave a truncated value on the stack.
+    i = 0
+    while i < size:
+        stack[ptr1 + i] = total & 0xff
+        total = total >> 8
+        i += 1
+    
+    free_stack_space(size)
 
 def divide(value):
 
@@ -115,14 +184,23 @@ def divide(value):
 
 def branch_if_false(offset):
 
-    if pop_byte():
-        program_counter += 1
-    else:
-        program_counter += offset
+    global program_counter
+    
+    if pop_byte() == false:
+        program_counter += offset - 1
+
+def branch_if_true(offset):
+
+    global program_counter
+    
+    if pop_byte() == true:
+        program_counter += offset - 1
 
 def branch(offset):
 
-    program_counter += offset
+    global program_counter
+    
+    program_counter += offset - 1
 
 def load_local(value):
 
@@ -147,20 +225,23 @@ def assign_local(value):
     offset, size = value
     i = 0
     while i < size:
-        stack[current_frame + offset + i] = stack[stack_pointer + i]
+        stack[current_frame + offset + i] = stack[stack_pointer - size + i]
         i += 1
     
     stack_pointer -= size
 
 def function_return(value):
 
-    pass
+    global program_counter
+    program_counter = call_stack.pop()
 
-def function_call(name):
+def function_call(address):
 
-    pass
+    global program_counter
+    call_stack.append(program_counter)
+    program_counter = address - 1
 
-def load_current_frame_address():
+def load_current_frame_address(unused):
 
     address = current_frame
     i = 0
@@ -169,10 +250,10 @@ def load_current_frame_address():
         address = address >> 8
         i += 1
 
-def store_stack_top_in_current_frame():
+def store_stack_top_in_current_frame(param_size):
 
     global current_frame
-    current_frame = stack_pointer
+    current_frame = stack_pointer - param_size
 
 def allocate_stack_space(size):
 
@@ -184,7 +265,7 @@ def free_stack_space(size):
     global stack_pointer
     stack_pointer -= size
 
-def pop_current_frame_address():
+def pop_current_frame_address(unused):
 
     global current_frame
     address = 0
@@ -195,11 +276,42 @@ def pop_current_frame_address():
     
     current_frame = address
 
-def copy_value(offset, size):
+def copy_value(value):
 
+    offset, size = value
     src = offset + address_size
     dest = -size
     i = size - 1
     while i >= 0:
         stack[stack_pointer + dest + i] = stack[stack_pointer + src + i]
         i -= 1
+
+def end(value):
+
+    raise StopIteration
+
+# Simulator initialisation
+
+def load(all_code):
+
+    global code
+    code = all_code
+
+def run():
+
+    global program_counter, stack_pointer
+    program_counter = 0
+    stack_pointer = 0
+    
+    while True:
+        instruction, value = code[program_counter]
+        if instruction == end:
+            break
+        print instruction, value
+        instruction(value)
+        program_counter += 1
+        #print program_counter
+        print stack[:stack_pointer]
+        raw_input(">")
+    
+    print stack[:stack_pointer]

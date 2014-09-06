@@ -3,3 +3,7 @@ def factorial x = 0
     while x != 1
         x = x - 1
         a = a * x
+
+A = factorial 1
+B = factorial 2
+C = factorial 3
