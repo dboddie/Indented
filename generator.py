@@ -110,7 +110,7 @@ def generate_allocate_stack_space(size):
 
     code.append((allocate_stack_space, size))
 
-def generate_enter_frame():
+def generate_enter_frame(var_size):
 
     # Push the current frame register onto the value stack.
     code.append((load_current_frame_address, None))
@@ -119,13 +119,13 @@ def generate_enter_frame():
     # depends on the implementation) and the number of bytes for the local
     # variables in the current frame register.
     code.append((store_stack_top_in_current_frame, None))
-
-def generate_function_call(name, var_size):
-
+    
     # Allocate enough space for the local variables.
     if var_size > 0:
         code.append((allocate_stack_space, var_size))
-    
+
+def generate_function_call(name):
+
     code.append((function_call, name))
 
 def generate_function_tidy(total_size, return_size):
@@ -142,3 +142,17 @@ def generate_function_tidy(total_size, return_size):
     # address that was on the stack.
     if return_size > 0:
         code.append((copy_value, (total_size, return_size)))
+
+def generate_exit_function():
+
+    code.append(("exit_function", None))
+
+def fix_returns(code_start):
+
+    target = len(code)
+    i = code_start
+    while i < target:
+        instruction, value = code[i]
+        if instruction == "exit_function":
+            code[i] = (branch, target - i)
+        i += 1

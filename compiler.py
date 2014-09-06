@@ -161,6 +161,14 @@ def global_variable_offset(index):
     
     return offset
 
+def total_variable_size(variables):
+
+    total_var_size = 0
+    for name, size in variables:
+        total_var_size += size
+    
+    return total_var_size
+
 # Function handling
 
 def find_function(token):
@@ -368,11 +376,50 @@ def parse_definition(stream):
             raise SyntaxError, "Invalid function definition at line %i." % tokeniser.line
         
         in_function = False
+        
+        # The code to handle the exit from the function follows the function
+        # body. Return calls should be branches to here.
+        
+        generator.fix_returns(code_start)
+        
+        # Write code to handle exit from the function.
+        
+        # Note that the stack at this point will contain the following:
+        # <local vars> <return value> <parent frame addr> <args> <local vars> <value>
+        #                                                ^
+        #                                       frame base address
+        # We will recover the parent frame and copy the value from the top of the
+        # child frame to the top of the parent frame, leaving the following:
+        # <local vars> <return value>
+        
+        total_param_size = total_variable_size(parameters)
+        total_var_size = total_variable_size(local_variables) - total_param_size
+        generator.generate_function_tidy(total_var_size + total_param_size,
+                                         return_size)
+        
         generator.generate_return()
         
         # Append the function details to the list of definitions, taking a copy
         # of the local variables.
         code = generator.code[code_start:]
+        generator.discard_code(code_start)
+        
+        # Write code to handle entry into the function. We can only do this
+        # after the body has been generated because we don't know the return
+        # type beforehand.
+        
+        # Generate code to record the address of the current frame in a frame base
+        # address register, pushing the previous frame base address onto the stack
+        # so that it can be recovered later.
+        #    <local vars> <return value>
+        # -> <local vars> <return value> <parent frame addr>
+        #   ^----------------------------/                  ^
+        #                                      new frame address
+        
+        generator.generate_enter_frame(total_var_size)
+        
+        # Append the generated code to the function's code.
+        code = generator.code[code_start:] + code
         generator.discard_code(code_start)
         
         # Replace the placeholder definition with the full one.
@@ -430,6 +477,8 @@ def parse_function_call(stream):
         put_tokens(top)
         return False
     
+    function_name, parameters, variables, code, rsize = functions[index]
+    
     # Ensure that enough space is allocated on the stack for the return value,
     # function arguments and local variables. To start with, we reserve space
     # for the return value, effectively appending it to the current frame as a
@@ -437,26 +486,15 @@ def parse_function_call(stream):
     #    <local variables>
     # -> <local variables> <return value>
     
-    function_name, parameters, variables, code, rsize = functions[index]
     if rsize > 0:
         generator.generate_allocate_stack_space(rsize)
-    
-    # Generate code to record the address of the current frame in a frame base
-    # address register, pushing the previous frame base address onto the stack
-    # so that it can be recovered later.
-    #    <local vars> <return value>
-    # -> <local vars> <return value> <parent frame addr>
-    #   ^----------------------------/                  ^
-    #                                      new frame address
-    
-    generator.generate_enter_frame()
     
     # Parse the arguments corresponding to the function parameters. The result
     # at run-time will be a series of values stored on the stack.
     #    <local vars> <return value> <parent frame addr>
     # -> <local vars> <return value> <parent frame addr> <arguments>
     
-    total_param_size = 0
+    total_param_size = total_variable_size(parameters)
     
     for name, size in parameters:
     
@@ -465,19 +503,13 @@ def parse_function_call(stream):
         
         if current_size != size:
             raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (token, tokeniser.line)
-        
-        total_param_size += size
     
     # Use the previously stored information about the local variables to
     # determine how much space should be allocated on the stack.
     #    <local vars> <return value> <parent frame addr> <args>
     # -> <local vars> <return value> <parent frame addr> <args> <local vars>
     
-    total_var_size = 0
-    for name, size in variables:
-        total_var_size += size
-    
-    total_var_size -= total_param_size
+    total_var_size = total_variable_size(variables) - total_param_size
     
     print "function call", function_name
     
@@ -486,17 +518,7 @@ def parse_function_call(stream):
     # return value.
     #    <local vars> <return value> <parent frame addr> <args> <local vars>
     
-    generator.generate_function_call(function_name, total_var_size)
-    
-    # Note that the stack at this point will contain the following:
-    # <local vars> <return value> <parent frame addr> <args> <local vars> <value>
-    #                                                ^
-    #                                       frame base address
-    # We will recover the parent frame and copy the value from the top of the
-    # child frame to the top of the parent frame, leaving the following:
-    # <local vars> <return value>
-    
-    generator.generate_function_tidy(total_var_size + total_param_size, rsize)
+    generator.generate_function_call(function_name)
     
     # Record the size of the return value to ensure that it is assigned or
     # discarded as necessary.
@@ -644,7 +666,7 @@ def parse_return(stream):
         raise SyntaxError, "Invalid return from function at line %i." % tokeniser.line
     
     return_size = current_size
-    generator.generate_return()
+    generator.generate_exit_function()
     return True
 
 def parse_separator(stream):

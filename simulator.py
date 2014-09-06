@@ -17,12 +17,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+address_size = 2
 stack_size = 256
 stack = [0] * stack_size
 current_frame = 0
 stack_pointer = 0
-stack_pointer_copy = 0
-address_size = 2
+
+code = []
+program_counter = 0
 
 true = 255
 false = 0
@@ -113,23 +115,42 @@ def divide(value):
 
 def branch_if_false(offset):
 
-    pass
+    if pop_byte():
+        program_counter += 1
+    else:
+        program_counter += offset
 
 def branch(offset):
 
-    pass
+    program_counter += offset
 
 def load_local(value):
 
+    global stack_pointer
+    
     offset, size = value
+    i = 0
+    while i < size:
+        stack[stack_pointer + i] = stack[current_frame + offset + i]
+        i += 1
+    
+    stack_pointer += size
 
 def load_global(value):
 
     offset, size = value
 
-def assign_local(info):
+def assign_local(value):
 
-    offset, size = info
+    global stack_pointer
+    
+    offset, size = value
+    i = 0
+    while i < size:
+        stack[current_frame + offset + i] = stack[stack_pointer + i]
+        i += 1
+    
+    stack_pointer -= size
 
 def function_return(value):
 
