@@ -56,12 +56,13 @@ def compare_equals(size):
     ptr2 = stack_pointer - size
     ptr1 = ptr2 - size
     
-    i = size - 1
-    while i > 0:
+    i = 0
+    while i < size:
         if stack[ptr1 + i] != stack[ptr2 + i]:
             free_stack_space(size * 2)
             push_byte(false)
-        i -= 1
+            return
+        i += 1
     
     free_stack_space(size * 2)
     push_byte(true)
@@ -254,6 +255,7 @@ def store_stack_top_in_current_frame(param_size):
 
     global current_frame
     current_frame = stack_pointer - param_size
+    print current_frame
 
 def allocate_stack_space(size):
 
@@ -278,13 +280,17 @@ def pop_current_frame_address(unused):
 
 def copy_value(value):
 
+    global stack_pointer
+    
     offset, size = value
     src = offset + address_size
     dest = -size
     i = size - 1
     while i >= 0:
-        stack[stack_pointer + dest + i] = stack[stack_pointer + src + i]
+        stack[stack_pointer + i] = stack[stack_pointer + src + i]
         i -= 1
+    
+    stack_pointer += size
 
 def end(value):
 

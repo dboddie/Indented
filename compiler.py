@@ -477,29 +477,19 @@ def parse_function_call(stream):
     
     function_name, parameters, variables, code, rsize = functions[index]
     
-    # Ensure that enough space is allocated on the stack for the return value,
-    # function arguments and local variables. To start with, we reserve space
-    # for the return value, effectively appending it to the current frame as a
-    # temporary value.
-    #    <local variables>
-    # -> <local variables> <return value>
-    
-    if rsize > 0:
-        generator.generate_allocate_stack_space(rsize)
-    
     # Generate code to record the address of the current frame in a frame base
     # address register, pushing the previous frame base address onto the stack
     # so that it can be recovered later.
-    #    <local vars> <return value>
-    # -> <local vars> <return value> <parent frame addr>
-    #   ^----------------------------/
+    #    <local vars>
+    # -> <local vars> <parent frame addr>
+    #   ^-------------/
     
     generator.generate_push_parent_frame()
     
     # Parse the arguments corresponding to the function parameters. The result
     # at run-time will be a series of values stored on the stack.
-    #    <local vars> <return value> <parent frame addr>
-    # -> <local vars> <return value> <parent frame addr> <arguments>
+    #    <local vars> <parent frame addr>
+    # -> <local vars> <parent frame addr> <arguments>
     
     total_param_size = total_variable_size(parameters)
     
@@ -513,17 +503,18 @@ def parse_function_call(stream):
     
     # Use the previously stored information about the local variables to
     # determine how much space should be allocated on the stack.
-    #    <local vars> <return value> <parent frame addr> <args>
-    # -> <local vars> <return value> <parent frame addr> <args> <local vars>
+    #    <local vars> <parent frame addr> <args>
+    # -> <local vars> <parent frame addr> <args> <local vars>
     
     total_var_size = total_variable_size(variables) - total_param_size
     
     debug_print("function call", function_name)
     
     # Call the function then restore the address of the frame for the calling
-    # scope. Pop the local variables and arguments from the stack, leaving the
-    # return value.
-    #    <local vars> <return value> <parent frame addr> <args> <local vars>
+    # scope. Pop the local variables and arguments from the stack, copying any
+    # return value down in memory to the new stack top.
+    #    <local vars> <parent frame addr> <args> <local vars> <return value>
+    # -> <local vars> <return value>
     
     generator.generate_function_call(function_name)
     
@@ -588,9 +579,15 @@ def parse_operation(stream):
         put_tokens(top)
         return False
     
+    if current_size == 0:
+        raise SyntaxError, "Operand 1 has zero size at line %i." % tokeniser.line
+    
     if not parse_operand(stream):
         # Not a value, but one was expected, so report an error.
         raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
+    
+    if current_size == 0:
+        raise SyntaxError, "Operand 2 has zero size at line %i." % tokeniser.line
     
     if token == "==":
         debug_print("equals", token)
