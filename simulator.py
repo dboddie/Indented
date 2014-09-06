@@ -165,10 +165,10 @@ def multiply(size):
             c = v / 256
             v = v % 256
             j += 1
-            s2 += 1
+            s2 += 8
         
         i += 1
-        s1 += 1
+        s1 += 8
     
     # Leave a truncated value on the stack.
     i = 0
@@ -309,6 +309,8 @@ def run():
     program_counter = 0
     stack_pointer = 0
     
+    step = True
+    
     while True:
         instruction, value = code[program_counter]
         if instruction == end:
@@ -318,6 +320,9 @@ def run():
         program_counter += 1
         #print program_counter
         print stack[:stack_pointer]
-        raw_input(">")
+        if step:
+            q = raw_input(">")
+            if q == "c":
+                step = False
     
     print stack[:stack_pointer]

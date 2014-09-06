@@ -67,7 +67,7 @@ def factorial x
     if x == 0
         return 1
     else
-        return x * factorial(x - 1)
+        return x * factorial x - 1
 
 The "def" keyword starts compilation of a function with the name and
 arguments specified before the first newline. The definition ends at the
@@ -107,4 +107,19 @@ that it must be immediately followed by an assignment operator.
 Problems
 --------
 
-See the lines.py file for a list of current problems.
+See the lines.py file for a list of current problems in the first
+implementation.
+
+Expressions used as arguments to functions cause problems due to the way
+expressions are parsed, making it impossible to use function calls as the
+first operand in an operation:
+
+  x * factorial x - 1   is not the same as
+  factorial x - 1 * x
+
+The return types of functions are not declared in advance, making it
+problematic when a recursive function call is encountered because we rely on
+having type size information immediately available when parsing. This is
+currently worked around by allowing return calls to update the function
+information, but it means that functions need to return a concrete value
+earlier than calls to themselves.
