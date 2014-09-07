@@ -829,6 +829,8 @@ if __name__ == "__main__":
     stream = open(sys.argv[-1])
     run = sys.argv[1] == "-r"
     
+    load_address = 0xe00
+    
     try:
         parse_program(stream)
     except SyntaxError as exception:
@@ -847,12 +849,12 @@ if __name__ == "__main__":
     if run:
         print "Linking"
         try:
-            generator.link(functions)
+            generator.link(functions, load_address)
         except KeyError as exception:
             sys.stderr.write(str(exception) + "\n")
             sys.exit(1)
         
         print "Loading"
-        simulator.load(generator.code)
+        simulator.load(generator.code, load_address)
         print "Running"
         simulator.run()

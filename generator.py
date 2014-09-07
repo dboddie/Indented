@@ -43,7 +43,7 @@ def fix_returns(code_start):
             code[i] = offset
         i += 1
 
-def link(functions):
+def link(functions, base_address):
 
     global code
     
@@ -66,7 +66,7 @@ def link(functions):
         
             # Adjust the following address bytes to contain the address.
             name = code[i + 1]
-            address = index[name]
+            address = base_address + index[name]
             j = 0
             while j < address_size:
                 i += 1

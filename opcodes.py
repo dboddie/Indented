@@ -44,3 +44,4 @@ end = range(0, 48, 2)
 
 address_size = 2
 branch_size = 1
+memory_size = 32768
