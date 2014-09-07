@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from simulator import *
+from opcodes import *
 from tokeniser import eof_token, read_token
 
 # Generated code

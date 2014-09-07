@@ -17,8 +17,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-address_size = 2
-branch_size = 1
+import opcodes
+from opcodes import address_size, branch_size
+
 stack_size = 256
 stack = [0] * stack_size
 current_frame = 0
@@ -345,6 +346,33 @@ def end():
 
     raise StopIteration
 
+lookup = {
+    opcodes.load_number: load_number,
+    opcodes.compare_equals: compare_equals,
+    opcodes.compare_not_equals: compare_not_equals,
+    opcodes.compare_less_than: compare_less_than,
+    opcodes.compare_greater_than: compare_greater_than,
+    opcodes.add: add,
+    opcodes.subtract: subtract,
+    opcodes.multiply: multiply,
+    opcodes.divide: divide,
+    opcodes.branch_if_false: branch_if_false,
+    opcodes.branch_if_true: branch_if_true,
+    opcodes.branch: branch,
+    opcodes.load_local: load_local,
+    opcodes.load_global: load_global,
+    opcodes.assign_local: assign_local,
+    opcodes.function_return: function_return,
+    opcodes.function_call: function_call,
+    opcodes.load_current_frame_address: load_current_frame_address,
+    opcodes.store_stack_top_in_current_frame: store_stack_top_in_current_frame,
+    opcodes.allocate_stack_space: allocate_stack_space,
+    opcodes.free_stack_space: free_stack_space,
+    opcodes.pop_current_frame_address: pop_current_frame_address,
+    opcodes.copy_value: copy_value,
+    opcodes.end: end
+    }
+
 # Simulator initialisation
 
 def load(all_code):
@@ -362,7 +390,7 @@ def run():
     
     while True:
     
-        instruction = get_instruction()
+        instruction = lookup[get_instruction()]
         print program_counter, instruction
         if instruction == end:
             break
