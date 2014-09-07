@@ -81,7 +81,12 @@ def generate_number(token, size):
 
     global code
     value = int(token)
-    code += [load_number, value, size]
+    code += [load_number, size]
+    i = 0
+    while i < size:
+        code += [value & 0xff]
+        value = value >> 8
+        i += 1
 
 def generate_equals(size):
 

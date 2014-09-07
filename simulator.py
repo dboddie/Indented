@@ -73,12 +73,10 @@ def get_operand():
 
 def load_number():
 
-    value = get_operand()
     size = get_operand()
     
     while size > 0:
-        push_byte(value & 0xff)
-        value = value >> 8
+        push_byte(get_operand())
         size -= 1
 
 def compare_equals():
@@ -162,7 +160,7 @@ def add():
         c = v / 256
         v = v % 256
         memory[ptr1 + i] = v
-        i -= 1
+        i += 1
     
     _free_stack_space(size)
 
@@ -355,7 +353,6 @@ def copy_value():
     size = get_operand()
     
     src = offset + address_size
-    dest = -size
     i = size - 1
     while i >= 0:
         memory[stack_pointer + i] = memory[stack_pointer + src + i]

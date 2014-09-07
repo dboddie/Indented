@@ -123,3 +123,6 @@ having type size information immediately available when parsing. This is
 currently worked around by allowing return calls to update the function
 information, but it means that functions need to return a concrete value
 earlier than calls to themselves.
+
+Consider storing the current frame address on the call stack instead of the
+value stack.

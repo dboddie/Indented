@@ -823,13 +823,14 @@ def parse_variable(stream):
 if __name__ == "__main__":
 
     if not 2 <= len(sys.argv) <= 3:
-        sys.stderr.write("Usage: %s [-r] <file>\n" % sys.argv[0])
+        sys.stderr.write("Usage: %s [-r | -s] <file>\n" % sys.argv[0])
         sys.exit(1)
     
     stream = open(sys.argv[-1])
     run = sys.argv[1] == "-r"
+    save = sys.argv[1] == "-s"
     
-    load_address = 0xe00
+    load_address = 0x0e00
     
     try:
         parse_program(stream)
@@ -846,15 +847,23 @@ if __name__ == "__main__":
     print "Main code:"
     pprint.pprint(generator.code)
     
+    print "Linking"
+    try:
+        generator.link(functions, load_address)
+    except KeyError as exception:
+        sys.stderr.write(str(exception) + "\n")
+        sys.exit(1)
+    
     if run:
-        print "Linking"
-        try:
-            generator.link(functions, load_address)
-        except KeyError as exception:
-            sys.stderr.write(str(exception) + "\n")
-            sys.exit(1)
-        
         print "Loading"
         simulator.load(generator.code, load_address)
         print "Running"
         simulator.run()
+    
+    if save:
+        f = open("6502/program.oph", "w")
+        i = 0
+        while i < len(generator.code):
+            f.write(".byte " + ", ".join(map(str, generator.code[i:i + 24])) + "\n")
+            i += 24
+        f.close()

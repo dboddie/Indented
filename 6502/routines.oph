@@ -1,0 +1,640 @@
+; routines.oph - Implementation of a simple virtual machine for the 6502 CPU.
+;
+; Copyright (C) 2014 David Boddie <david@boddie.org.uk>
+;
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+.org $0e00
+
+; The program is included before the routines. The value and call stacks follow
+; the routines.
+
+program:
+
+.include "program.oph"
+
+run:
+
+    ; All the addresses of the routines should be in the same page, so we only
+    ; need to set the high byte once.
+    lda #$0e
+    sta instruction_high
+
+    lda #<program
+    sta program_counter
+    lda #>program
+    sta [program_counter + 1]
+
+    lda #<stack
+    sta call_stack_pointer
+    lda #>stack
+    sta [call_stack_pointer + 1]
+
+    lda #<stack
+    adc #32
+    sta current_frame
+    sta stack_pointer
+    lda #>stack
+    adc #0
+    sta [current_frame + 1]
+    sta [stack_pointer + 1]
+
+    next_instruction:
+
+    ; The opcode is used as the low byte of the address into the lookup table.
+    ; Copy this byte into the low byte of the instruction address register.
+    jsr _get_instruction
+    sta instruction_low
+
+    ; Jump to the address held by the instruction register.
+    jmp (instruction_low)
+
+lookup:
+.byte <load_number, >load_number
+.byte <compare_equals, >compare_equals
+.byte <compare_not_equals, >compare_not_equals
+.byte <compare_less_than, >compare_less_than
+.byte <compare_greater_than, >compare_greater_than
+.byte <add, >add
+.byte <subtract, >subtract
+.byte <multiply, >multiply
+.byte <divide, >divide
+.byte <branch_if_false, >branch_if_false
+.byte <branch_if_true, >branch_if_true
+.byte <branch, >branch
+.byte <load_local, >load_local
+.byte <load_global, >load_global
+.byte <assign_local, >assign_local
+.byte <function_return, >function_return
+.byte <function_call, >function_call
+.byte <load_current_frame_address, >load_current_frame_address
+.byte <store_stack_top_in_current_frame, >store_stack_top_in_current_frame
+.byte <allocate_stack_space, >allocate_stack_space
+.byte <free_stack_space, >free_stack_space
+.byte <pop_current_frame_address, >pop_current_frame_address
+.byte <copy_value, >copy_value
+.byte <end, >end
+
+.alias current_frame        $70
+.alias program_counter      $72
+.alias stack_pointer        $74
+.alias call_stack_pointer   $76
+.alias size                 $78
+.alias offset               $79
+.alias ptr1                 $7a
+.alias ptr2                 $7c
+.alias instruction_low      $7e
+.alias instruction_high     $7f
+.alias temp                 $80
+
+.alias true 255
+.alias false 0
+
+.alias address_size 2
+.alias branch_size 1
+
+_push_byte:  ; A=value
+
+    ldy #0
+    sta (stack_pointer),y
+    inc stack_pointer
+    lda [stack_pointer + 1]
+    adc #0
+    sta [stack_pointer + 1]
+    clc
+    rts
+
+_pop_byte:
+
+    dec stack_pointer
+    lda [stack_pointer + 1]
+    sbc #0
+    sta [stack_pointer + 1]
+    clc
+    ldy #0
+    lda (stack_pointer),y
+    rts
+
+_push_call_byte: ; A=value
+
+    ldy #0
+    sta (call_stack_pointer),y
+    inc call_stack_pointer
+    lda [call_stack_pointer + 1]
+    adc #0
+    sta [call_stack_pointer + 1]
+    clc
+    rts
+
+_pop_call_byte:
+
+    dec call_stack_pointer
+    lda [call_stack_pointer + 1]
+    sbc #0
+    sta [call_stack_pointer + 1]
+    clc
+    ldy #0
+    lda (call_stack_pointer),y
+    rts
+
+_increment_program_counter:
+
+    inc program_counter
+    lda [program_counter + 1]
+    adc #0
+    sta [program_counter + 1]
+    clc
+    rts
+
+_get_instruction:
+_get_operand:
+
+    ldy #0
+    lda (program_counter),y
+    pha
+    jsr _increment_program_counter
+    pla
+    rts
+
+; Instructions
+
+load_number:
+
+    jsr _get_operand
+    sta size
+
+    load_number_loop:
+        lda temp
+        cmp #0
+        beq load_number_exit
+
+        jsr _get_operand
+        jsr _push_byte
+        dec temp
+
+    load_number_exit:
+    clc
+    jmp next_instruction
+
+_set_ptr2:  ; ptr2 = stack_pointer - A
+
+    sec
+    lda stack_pointer
+    sbc size
+    sta ptr2
+    lda [stack_pointer + 1]
+    sbc #0
+    sta [ptr2 + 1]
+    clc
+    rts
+
+_set_ptr1:  ; ptr1 = ptr2 - A
+
+    sec
+    lda ptr2
+    sbc size
+    sta ptr1
+    lda [ptr2 + 1]
+    sbc #0
+    sta [ptr1 + 1]
+    clc
+    rts
+
+compare_equals:
+
+    jsr _get_operand
+    sta size
+
+    jsr _set_ptr2
+    jsr _set_ptr1
+
+    ldy #0
+    compare_equals_loop:
+
+        lda (ptr1),y
+        cmp (ptr2),y
+        beq compare_equals_loop_continue
+
+            lda size
+            asl
+            jsr _free_stack_space
+            lda #false
+            jsr _push_byte
+            jmp next_instruction
+
+        compare_equals_loop_continue:
+        iny
+        cpy size
+        bne compare_equals_loop
+
+    compare_equals_loop_exit:
+    lda size
+    asl
+    jsr _free_stack_space
+    lda #true
+    jsr _push_byte
+    jmp next_instruction
+
+compare_not_equals:
+
+    jsr _get_operand
+    sta size
+
+    jsr _set_ptr2
+    jsr _set_ptr1
+
+    ldy #0
+    compare_not_equals_loop:
+
+        lda (ptr1),y
+        cmp (ptr2),y
+        beq compare_not_equals_loop_continue
+
+            lda size
+            asl
+            jsr _free_stack_space
+            lda #true
+            jsr _push_byte
+            jmp next_instruction
+
+        compare_not_equals_loop_continue:
+        iny
+        cpy size
+        bne compare_not_equals_loop
+
+    compare_not_equals_loop_exit:
+    lda size
+    asl
+    jsr _free_stack_space
+    lda #false
+    jsr _push_byte
+    jmp next_instruction
+
+compare_less_than:
+
+    jsr _get_operand
+    sta size
+
+    jsr _set_ptr2
+    jsr _set_ptr1
+
+    ldy size
+    dey
+
+    compare_less_than_loop:
+
+        lda (ptr1),y
+        cmp (ptr2),y
+        bcs compare_less_than_loop_continue
+
+            lda size
+            asl
+            jsr _free_stack_space
+            lda #true
+            jsr _push_byte
+            jmp next_instruction
+
+        compare_less_than_loop_continue:
+        dey
+        cpy #255
+        bne compare_less_than_loop
+
+    lda size
+    asl
+    jsr _free_stack_space
+    lda #false
+    jsr _push_byte
+    jmp next_instruction
+
+compare_greater_than:
+
+    jsr _get_operand
+    sta size
+
+    jsr _set_ptr2
+    jsr _set_ptr1
+
+    ldy size
+    dey
+
+    compare_greater_than_loop:
+
+        lda (ptr1),y
+        cmp (ptr2),y
+        bcc compare_greater_than_loop_continue
+        beq compare_greater_than_loop_continue
+
+            lda size
+            asl
+            jsr _free_stack_space
+            lda #true
+            jsr _push_byte
+            jmp next_instruction
+
+        compare_greater_than_loop_continue:
+        dey
+        cpy #255
+        bne compare_greater_than_loop
+
+    lda size
+    asl
+    jsr _free_stack_space
+    lda #false
+    jsr _push_byte
+    jmp next_instruction
+
+add:
+
+    jsr _get_operand
+    stx size
+
+    jsr _set_ptr2
+    jsr _set_ptr1
+
+    ldy #0
+    add_loop:
+
+        lda (ptr1),y
+        adc (ptr2),y
+        sta (ptr1),y
+
+        iny
+        dex
+        bne add_loop
+
+    clc
+    lda size
+    jsr _free_stack_space
+    jmp next_instruction
+
+subtract:
+
+    jsr _get_operand
+    stx size
+
+    jsr _set_ptr2
+    jsr _set_ptr1
+
+    ldy #0
+    sec
+    subtract_loop:
+
+        lda (ptr1),y
+        sbc (ptr2),y
+        sta (ptr1),y
+
+        iny
+        dex
+        bne subtract_loop
+
+    clc
+    lda size
+    jsr _free_stack_space
+    jmp next_instruction
+
+multiply:
+
+    brk
+
+divide:
+
+    brk
+
+branch_if_false:
+
+    jsr _get_operand
+    sta temp
+    
+    jsr _pop_byte
+    cmp #false
+    lda temp
+    beq branch
+    clc
+    jmp next_instruction
+
+branch_if_true:
+
+    jsr _get_operand
+    sta temp
+    
+    jsr _pop_byte
+    cmp #true
+    lda temp
+    beq branch
+    clc
+    jmp next_instruction
+
+branch:
+
+    jsr _get_operand
+    sec
+    sbc #[1 + branch_size]
+    sta temp
+    clc
+
+    lda program_counter
+    adc temp
+    sta program_counter
+    lda [program_counter + 1]
+    adc #0
+    sta [program_counter + 1]
+    clc
+    jmp next_instruction
+
+load_local:
+
+    jsr _get_operand
+    sta offset
+    jsr _get_operand
+    sta size
+
+    lda current_frame
+    adc offset
+    sta ptr1
+    lda [current_frame + 1]
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    jsr _set_ptr2
+
+    ldy #0
+    load_local_loop:
+
+        lda (ptr1),y
+        sta (ptr2),y
+        iny
+        cpy size
+        bne load_local_loop
+
+    lda size
+    jmp _allocate_stack_space   ; return
+
+load_global:
+
+    jsr _get_operand
+    jsr _get_operand
+    rts
+
+assign_local:
+
+    jsr _get_operand
+    sta offset
+    jsr _get_operand
+    sta size
+
+    lda current_frame
+    adc offset
+    sta ptr1
+    lda [current_frame + 1]
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    jsr _set_ptr2
+
+    ldy #0
+    assign_local_loop:
+
+        lda (ptr2),y
+        sta (ptr1),y
+        iny
+        cpy size
+        bne assign_local_loop
+
+    lda size
+    jmp _free_stack_space   ; return
+
+function_return:
+
+    jsr _pop_call_byte
+    sta [program_counter + 1]
+    jsr _pop_call_byte
+    sta program_counter
+    jmp next_instruction
+
+function_call:
+
+    lda program_counter
+    jsr _push_call_byte
+    lda [program_counter + 1]
+    jsr _push_call_byte
+
+    jsr _get_operand
+    sta program_counter
+    jsr _get_operand
+    sta [program_counter + 1]
+    jmp next_instruction
+
+load_current_frame_address:
+
+    lda current_frame
+    jsr _push_byte
+    lda [current_frame + 1]
+    jsr _push_byte
+    jmp next_instruction
+
+store_stack_top_in_current_frame:
+
+    jsr _get_operand
+    sta size
+
+    sec
+    lda stack_pointer
+    sbc size
+    sta current_frame
+    lda [stack_pointer + 1]
+    sbc #0
+    sta [current_frame + 1]
+    clc
+    jmp next_instruction
+
+allocate_stack_space:
+
+    jsr _get_operand
+    jsr _allocate_stack_space
+    jmp next_instruction
+
+_allocate_stack_space:  ; A=size
+
+    sta temp
+    lda stack_pointer
+    adc temp
+    sta stack_pointer
+    lda [stack_pointer + 1]
+    adc #0
+    sta [stack_pointer + 1]
+    clc
+    rts
+
+free_stack_space:
+
+    jsr _get_operand
+    jsr _free_stack_space
+    jmp next_instruction
+
+_free_stack_space:  ; A=size
+
+    sta temp
+    sec
+    lda stack_pointer
+    sbc temp
+    sta stack_pointer
+    lda [stack_pointer + 1]
+    sbc #0
+    sta [stack_pointer + 1]
+    clc
+    rts
+
+pop_current_frame_address:
+
+    jsr _pop_byte
+    sta [current_frame + 1]
+    jsr _pop_byte
+    sta [current_frame]
+    jmp next_instruction
+
+copy_value:
+
+    jsr _get_operand
+    sta offset
+    jsr _get_operand
+    sta size
+
+    lda stack_pointer
+    adc offset
+    adc #address_size
+    sta ptr1
+    lda [stack_pointer + 1]
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    ldy #0
+    copy_value_loop:
+
+        lda (ptr1),y
+        sta (stack_pointer),y
+        iny
+        cpy size
+        bne copy_value_loop
+
+    lda size
+    jsr _allocate_stack_space
+    jmp next_instruction
+
+end:
+    brk
+
+stack:
