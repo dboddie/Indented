@@ -269,6 +269,9 @@ def parse_control(stream):
         if parse_expression(stream):
             debug_print("expression")
             
+            if current_size != 1:
+                raise SyntaxError, "Invalid condition type at line %i." % tokeniser.line
+            
             # Insert a placeholder branch instruction.
             address = generator.generate_if()
             
@@ -286,6 +289,9 @@ def parse_control(stream):
         
         if parse_expression(stream):
             debug_print("expression")
+            
+            if current_size != 1:
+                raise SyntaxError, "Invalid condition type at line %i." % tokeniser.line
             
             # Insert a placeholder branch instruction.
             address = generator.generate_while()

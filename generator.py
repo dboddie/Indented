@@ -35,9 +35,12 @@ def fix_returns(code_start):
     target = len(code)
     i = code_start
     while i < target:
-        instruction, value = code[i]
+        instruction = code[i]
         if instruction == "exit_function":
-            code[i] = (branch, target - i)
+            code[i] = branch
+            offset = target - i
+            i += 1
+            code[i] = offset
         i += 1
 
 def link(functions):
@@ -56,139 +59,180 @@ def link(functions):
     
     i = 0
     while i < len(code):
-        instruction, value = code[i]
+    
+        instruction = code[i]
+        
         if instruction == function_call:
-            code[i] = (function_call, index[value])
+        
+            # Adjust the following address bytes to contain the address.
+            name = code[i + 1]
+            address = index[name]
+            j = 0
+            while j < address_size:
+                i += 1
+                code[i] = address & 0xff
+                address = address >> 8
+                j += 1
         i += 1
 
 # Generation functions
 
 def generate_number(token, size):
 
+    global code
     value = int(token)
-    code.append((load_number, (value, size)))
+    code += [load_number, value, size]
 
 def generate_equals(size):
 
-    code.append((compare_equals, size))
+    global code
+    code += [compare_equals, size]
 
 def generate_not_equals(size):
 
-    code.append((compare_not_equals, size))
+    global code
+    code += [compare_not_equals, size]
 
 def generate_less_than(size):
 
-    code.append((compare_less_than, size))
+    global code
+    code += [compare_less_than, size]
 
 def generate_greater_than(size):
 
-    code.append((compare_greater_than, size))
+    global code
+    code += [compare_greater_than, size]
 
 def generate_add(size):
 
-    code.append((add, size))
+    global code
+    code += [add, size]
 
 def generate_subtract(size):
 
-    code.append((subtract, size))
+    global code
+    code += [subtract, size]
 
 def generate_multiply(size):
 
-    code.append((multiply, size))
+    global code
+    code += [multiply, size]
 
 def generate_divide(size):
 
-    code.append((divide, size))
+    global code
+    code += [divide, size]
 
 def generate_if():
 
+    global code
     offset = len(code)
-    code.append([branch_if_false, None])
+    code += [branch_if_false, None]
     return offset
 
 def generate_while():
 
+    global code
     offset = len(code)
-    code.append([branch_if_false, None])
+    code += [branch_if_false, None]
     return offset
 
 def generate_target(address):
 
+    global code
     offset = len(code) - address
-    code[address][1] = offset
+    code[address + 1] = offset
 
 def generate_branch(address):
 
+    global code
     offset = address - len(code)
-    code.append((branch, offset))
+    code += [branch, offset]
 
 def generate_load_local(offset, size):
 
-    code.append((load_local, (offset, size)))
+    global code
+    code += [load_local, offset, size]
 
 def generate_load_global(offset, size):
 
-    code.append((load_global, (offset, size)))
+    global code
+    code += [load_global, offset, size]
 
 def generate_assign_local(offset, size):
 
-    code.append((assign_local, (offset, size)))
+    global code
+    code += [assign_local, offset, size]
 
 def generate_assign_global(offset, size):
 
-    code.append((assign_global, (offset, size)))
+    global code
+    code += [assign_global, offset, size]
 
 def generate_discard_value(size):
 
+    global code
     if size > 0:
-        code.append((free_stack_space, size))
+        code += [free_stack_space, size]
 
 def generate_return():
 
-    code.append((function_return, None))
+    global code
+    code += [function_return]
 
 def generate_allocate_stack_space(size):
 
-    code.append((allocate_stack_space, size))
+    global code
+    code += [allocate_stack_space, size]
 
 def generate_push_parent_frame():
 
+    global code
+    
     # Push the current frame register onto the value stack.
-    code.append((load_current_frame_address, None))
+    code += [load_current_frame_address]
 
 def generate_enter_frame(param_size, var_size):
 
+    global code
+    
     # Put the stack top address, minus the number of bytes for the parameters
     # in the current frame register.
-    code.append((store_stack_top_in_current_frame, param_size))
+    code += [store_stack_top_in_current_frame, param_size]
     
     # Allocate enough space for the local variables.
     if var_size > 0:
-        code.append((allocate_stack_space, var_size))
+        code += [allocate_stack_space, var_size]
 
 def generate_function_call(name):
 
-    code.append((function_call, name))
+    global code
+    code += [function_call, name]
+    code += [0] * (address_size - 1)
 
 def generate_function_tidy(total_size, return_size):
 
+    global code
+    
     # Pop bytes from the value stack that correspond to the parameters, local
     # variables and return value.
-    code.append((free_stack_space, total_size + return_size))
+    code += [free_stack_space, total_size + return_size]
     
     # Restore the previous frame address from the stack.
-    code.append((pop_current_frame_address, None))
+    code += [pop_current_frame_address]
     
     # Copy the return value from the top of the stack to the top of the
     # parent frame. This will automatically include the size of the frame
     # address that was on the stack.
     if return_size > 0:
-        code.append((copy_value, (total_size, return_size)))
+        code += [copy_value, total_size, return_size]
 
 def generate_exit_function():
 
-    code.append(("exit_function", None))
+    global code
+    code += ["exit_function", None]
 
 def generate_end():
 
-    code.append((end, None))
+    global code
+    code += [end]
