@@ -17,8 +17,52 @@
 
 .org $0e00
 
+.alias current_frame        $70
+.alias program_counter      $72
+.alias stack_pointer        $74
+.alias call_stack_pointer   $76
+.alias size                 $78
+.alias offset               $79
+.alias ptr1                 $7a
+.alias ptr2                 $7c
+.alias instruction_low      $7e
+.alias instruction_high     $7f
+.alias temp                 $80
+
+.alias true 255
+.alias false 0
+
+.alias address_size 2
+.alias branch_size 1
+
 ; The program is included before the routines. The value and call stacks follow
 ; the routines.
+
+lookup:
+.byte <load_number, >load_number
+.byte <compare_equals, >compare_equals
+.byte <compare_not_equals, >compare_not_equals
+.byte <compare_less_than, >compare_less_than
+.byte <compare_greater_than, >compare_greater_than
+.byte <add, >add
+.byte <subtract, >subtract
+.byte <multiply, >multiply
+.byte <divide, >divide
+.byte <branch_if_false, >branch_if_false
+.byte <branch_if_true, >branch_if_true
+.byte <branch, >branch
+.byte <load_local, >load_local
+.byte <load_global, >load_global
+.byte <assign_local, >assign_local
+.byte <function_return, >function_return
+.byte <function_call, >function_call
+.byte <load_current_frame_address, >load_current_frame_address
+.byte <store_stack_top_in_current_frame, >store_stack_top_in_current_frame
+.byte <allocate_stack_space, >allocate_stack_space
+.byte <free_stack_space, >free_stack_space
+.byte <pop_current_frame_address, >pop_current_frame_address
+.byte <copy_value, >copy_value
+.byte <end, >end
 
 program:
 
@@ -49,6 +93,7 @@ run:
     adc #0
     sta [current_frame + 1]
     sta [stack_pointer + 1]
+    clc
 
     next_instruction:
 
@@ -57,52 +102,11 @@ run:
     jsr _get_instruction
     sta instruction_low
 
+    lda #46
+    jsr $ffee
+
     ; Jump to the address held by the instruction register.
     jmp (instruction_low)
-
-lookup:
-.byte <load_number, >load_number
-.byte <compare_equals, >compare_equals
-.byte <compare_not_equals, >compare_not_equals
-.byte <compare_less_than, >compare_less_than
-.byte <compare_greater_than, >compare_greater_than
-.byte <add, >add
-.byte <subtract, >subtract
-.byte <multiply, >multiply
-.byte <divide, >divide
-.byte <branch_if_false, >branch_if_false
-.byte <branch_if_true, >branch_if_true
-.byte <branch, >branch
-.byte <load_local, >load_local
-.byte <load_global, >load_global
-.byte <assign_local, >assign_local
-.byte <function_return, >function_return
-.byte <function_call, >function_call
-.byte <load_current_frame_address, >load_current_frame_address
-.byte <store_stack_top_in_current_frame, >store_stack_top_in_current_frame
-.byte <allocate_stack_space, >allocate_stack_space
-.byte <free_stack_space, >free_stack_space
-.byte <pop_current_frame_address, >pop_current_frame_address
-.byte <copy_value, >copy_value
-.byte <end, >end
-
-.alias current_frame        $70
-.alias program_counter      $72
-.alias stack_pointer        $74
-.alias call_stack_pointer   $76
-.alias size                 $78
-.alias offset               $79
-.alias ptr1                 $7a
-.alias ptr2                 $7c
-.alias instruction_low      $7e
-.alias instruction_high     $7f
-.alias temp                 $80
-
-.alias true 255
-.alias false 0
-
-.alias address_size 2
-.alias branch_size 1
 
 _push_byte:  ; A=value
 
@@ -562,6 +566,8 @@ store_stack_top_in_current_frame:
 
 allocate_stack_space:
 
+    lda #42
+    jsr $ffee
     jsr _get_operand
     jsr _allocate_stack_space
     jmp next_instruction
@@ -635,6 +641,9 @@ copy_value:
     jmp next_instruction
 
 end:
-    brk
+    lda #44
+    jsr $ffee
+    clc
+    rts
 
 stack:

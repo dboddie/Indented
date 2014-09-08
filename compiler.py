@@ -819,6 +819,21 @@ def parse_variable(stream):
     put_tokens(top)
     return False
 
+def save_opcodes_oph(file_name):
+
+    f = open(file_name, "w")
+    i = 0
+    while i < len(generator.code):
+        f.write(".byte " + ", ".join(map(str, generator.code[i:i + 24])) + "\n")
+        i += 24
+    f.close()
+
+def save_opcodes(file_name):
+
+    f = open(file_name, "wb")
+    f.write("".join(map(chr, generator.code)))
+    f.close()
+
 
 if __name__ == "__main__":
 
@@ -861,9 +876,4 @@ if __name__ == "__main__":
         simulator.run()
     
     if save:
-        f = open("6502/program.oph", "w")
-        i = 0
-        while i < len(generator.code):
-            f.write(".byte " + ", ".join(map(str, generator.code[i:i + 24])) + "\n")
-            i += 24
-        f.close()
+        save_opcodes_oph("6502/program.oph")
