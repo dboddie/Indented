@@ -97,16 +97,24 @@ run:
 
     next_instruction:
 
-    ; The opcode is used as the low byte of the address into the lookup table.
-    ; Copy this byte into the low byte of the instruction address register.
-    jsr _get_instruction
-    sta instruction_low
-
     lda #46
     jsr $ffee
 
-    ; Jump to the address held by the instruction register.
-    jmp (instruction_low)
+    ; The opcode is used as the low byte of the address into the lookup table.
+    ; Copy this byte into the low byte of the instruction address register.
+    jsr _get_instruction
+    sta instruction_low         ; Store the low byte of the lookup table entry
+                                ; address.
+
+    ldy #0
+    lda (instruction_low),y     ; Load the low byte of the routine address.
+    sta temp                    ; Store the address in a fixed address.
+    iny
+    lda (instruction_low),y     ; Load the high byte of the routine address.
+    sta [temp + 1]              ; Store the address in a fixed address.
+
+    ; Jump to the address held by the temporary address.
+    jmp (temp)
 
 _push_byte:  ; A=value
 
@@ -154,6 +162,7 @@ _pop_call_byte:
 
 _increment_program_counter:
 
+    clc
     inc program_counter
     lda [program_counter + 1]
     adc #0
@@ -179,13 +188,14 @@ load_number:
     sta size
 
     load_number_loop:
-        lda temp
-        cmp #0
-        beq load_number_exit
 
+        dec size
         jsr _get_operand
         jsr _push_byte
-        dec temp
+
+        lda size
+        cmp #0
+        bne load_number_loop
 
     load_number_exit:
     clc
@@ -361,7 +371,8 @@ compare_greater_than:
 add:
 
     jsr _get_operand
-    stx size
+    sta size
+    tax
 
     jsr _set_ptr2
     jsr _set_ptr1
@@ -385,7 +396,8 @@ add:
 subtract:
 
     jsr _get_operand
-    stx size
+    sta size
+    tax
 
     jsr _set_ptr2
     jsr _set_ptr1
@@ -471,25 +483,25 @@ load_local:
     sta [ptr1 + 1]
     clc
 
-    jsr _set_ptr2
-
     ldy #0
     load_local_loop:
 
         lda (ptr1),y
-        sta (ptr2),y
+        sta (stack_pointer),y
         iny
         cpy size
         bne load_local_loop
 
+    clc
     lda size
-    jmp _allocate_stack_space   ; return
+    jsr _allocate_stack_space
+    jmp next_instruction
 
 load_global:
 
     jsr _get_operand
     jsr _get_operand
-    rts
+    jmp next_instruction
 
 assign_local:
 
@@ -517,8 +529,10 @@ assign_local:
         cpy size
         bne assign_local_loop
 
+    clc
     lda size
-    jmp _free_stack_space   ; return
+    jsr _free_stack_space
+    jmp next_instruction
 
 function_return:
 
@@ -566,17 +580,13 @@ store_stack_top_in_current_frame:
 
 allocate_stack_space:
 
-    lda #42
-    jsr $ffee
     jsr _get_operand
     jsr _allocate_stack_space
     jmp next_instruction
 
 _allocate_stack_space:  ; A=size
 
-    sta temp
-    lda stack_pointer
-    adc temp
+    adc stack_pointer
     sta stack_pointer
     lda [stack_pointer + 1]
     adc #0
@@ -641,7 +651,7 @@ copy_value:
     jmp next_instruction
 
 end:
-    lda #44
+    lda #69
     jsr $ffee
     clc
     rts

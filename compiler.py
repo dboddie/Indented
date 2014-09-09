@@ -824,7 +824,12 @@ def save_opcodes_oph(file_name):
     f = open(file_name, "w")
     i = 0
     while i < len(generator.code):
-        f.write(".byte " + ", ".join(map(str, generator.code[i:i + 24])) + "\n")
+        opcodes = []
+        for opcode in generator.code[i:i + 24]:
+            if opcode < 0:
+                opcode = 256 + opcode
+            opcodes.append(opcode)
+        f.write(".byte " + ", ".join(map(str, opcodes)) + "\n")
         i += 24
     f.close()
 
