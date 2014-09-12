@@ -874,6 +874,9 @@ if __name__ == "__main__":
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
     
+    print "Main code:"
+    pprint.pprint(generator.code)
+    
     if run:
         print "Loading"
         simulator.load(generator.code, load_address)

@@ -26,9 +26,12 @@ add, \
 subtract, \
 multiply, \
 divide, \
-branch_if_false, \
-branch_if_true, \
-branch, \
+branch_forward_if_false, \
+branch_forward_if_true, \
+branch_forward, \
+branch_backward_if_false, \
+branch_backward_if_true, \
+branch_backward, \
 load_local, \
 load_global, \
 assign_local, \
@@ -40,7 +43,7 @@ allocate_stack_space, \
 free_stack_space, \
 pop_current_frame_address, \
 copy_value, \
-end = range(0, 48, 2)
+end = range(0, 54, 2)
 
 address_size = 2
 branch_size = 1

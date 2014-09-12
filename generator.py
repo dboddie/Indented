@@ -37,7 +37,7 @@ def fix_returns(code_start):
     while i < target:
         instruction = code[i]
         if instruction == "exit_function":
-            code[i] = branch
+            code[i] = branch_forward
             offset = target - i
             i += 1
             code[i] = offset
@@ -62,8 +62,11 @@ def link(functions, base_address):
     
         instruction = code[i]
         
-        if instruction == function_call:
+        if instruction == "function_call":
         
+            # Adjust the opcode.
+            code[i] = function_call
+            
             # Adjust the following address bytes to contain the address.
             name = code[i + 1]
             address = base_address + index[name]
@@ -132,14 +135,14 @@ def generate_if():
 
     global code
     offset = len(code)
-    code += [branch_if_false, None]
+    code += [branch_forward_if_false, None]
     return offset
 
 def generate_while():
 
     global code
     offset = len(code)
-    code += [branch_if_false, None]
+    code += [branch_forward_if_false, None]
     return offset
 
 def generate_target(address):
@@ -152,7 +155,10 @@ def generate_branch(address):
 
     global code
     offset = address - len(code)
-    code += [branch, offset]
+    if offset < 0:
+        code += [branch_backward, -offset]
+    else:
+        code += [branch_forward, offset]
 
 def generate_load_local(offset, size):
 
@@ -212,7 +218,7 @@ def generate_enter_frame(param_size, var_size):
 def generate_function_call(name):
 
     global code
-    code += [function_call, name]
+    code += ["function_call", name]
     code += [0] * (address_size - 1)
 
 def generate_function_tidy(total_size, return_size):

@@ -218,7 +218,7 @@ def divide(value):
 
     pass
 
-def branch_if_false():
+def branch_forward_if_false():
 
     global program_counter
     offset = get_operand()
@@ -226,7 +226,7 @@ def branch_if_false():
     if pop_byte() == false:
         program_counter += offset - 1 - branch_size
 
-def branch_if_true():
+def branch_forward_if_true():
 
     global program_counter
     offset = get_operand()
@@ -234,12 +234,35 @@ def branch_if_true():
     if pop_byte() == true:
         program_counter += offset - 1 - branch_size
 
-def branch():
+def branch_forward():
 
     global program_counter
     offset = get_operand()
     
     program_counter += offset - 1 - branch_size
+
+def branch_backward_if_false():
+
+    global program_counter
+    offset = get_operand()
+    
+    if pop_byte() == false:
+        program_counter -= offset + 1 + branch_size
+
+def branch_backward_if_true():
+
+    global program_counter
+    offset = get_operand()
+    
+    if pop_byte() == true:
+        program_counter -= offset + 1 + branch_size
+
+def branch_backward():
+
+    global program_counter
+    offset = get_operand()
+    
+    program_counter -= offset + 1 + branch_size
 
 def load_local():
 
@@ -374,9 +397,12 @@ lookup = {
     opcodes.subtract: subtract,
     opcodes.multiply: multiply,
     opcodes.divide: divide,
-    opcodes.branch_if_false: branch_if_false,
-    opcodes.branch_if_true: branch_if_true,
-    opcodes.branch: branch,
+    opcodes.branch_forward_if_false: branch_forward_if_false,
+    opcodes.branch_forward_if_true: branch_forward_if_true,
+    opcodes.branch_forward: branch_forward,
+    opcodes.branch_backward_if_false: branch_backward_if_false,
+    opcodes.branch_backward_if_true: branch_backward_if_true,
+    opcodes.branch_backward: branch_backward,
     opcodes.load_local: load_local,
     opcodes.load_global: load_global,
     opcodes.assign_local: assign_local,

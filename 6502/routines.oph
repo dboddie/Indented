@@ -48,9 +48,12 @@ lookup:
 .byte <subtract, >subtract
 .byte <multiply, >multiply
 .byte <divide, >divide
-.byte <branch_if_false, >branch_if_false
-.byte <branch_if_true, >branch_if_true
-.byte <branch, >branch
+.byte <branch_forward_if_false, >branch_forward_if_false
+.byte <branch_forward_if_true, >branch_forward_if_true
+.byte <branch_forward, >branch_forward
+.byte <branch_backward_if_false, >branch_backward_if_false
+.byte <branch_backward_if_true, >branch_backward_if_true
+.byte <branch_backward, >branch_backward
 .byte <load_local, >load_local
 .byte <load_global, >load_global
 .byte <assign_local, >assign_local
@@ -121,21 +124,26 @@ _push_byte:  ; A=value
     ldy #0
     sta (stack_pointer),y
     inc stack_pointer
-    lda [stack_pointer + 1]
-    adc #0
-    sta [stack_pointer + 1]
-    clc
+    bne _push_byte_exit
+
+    inc [stack_pointer + 1]
+
+    _push_byte_exit:
     rts
 
 _pop_byte:
 
     dec stack_pointer
-    lda [stack_pointer + 1]
-    sbc #0
-    sta [stack_pointer + 1]
-    clc
+    lda stack_pointer
+    cmp #$ff
+    bne _pop_byte_exit
+
+    dec [stack_pointer + 1]
+
+    _pop_byte_exit:
     ldy #0
     lda (stack_pointer),y
+    clc
     rts
 
 _push_call_byte: ; A=value
@@ -143,21 +151,26 @@ _push_call_byte: ; A=value
     ldy #0
     sta (call_stack_pointer),y
     inc call_stack_pointer
-    lda [call_stack_pointer + 1]
-    adc #0
-    sta [call_stack_pointer + 1]
-    clc
+    bne _push_call_byte_exit
+
+    inc [call_stack_pointer + 1]
+
+    _push_call_byte_exit:
     rts
 
 _pop_call_byte:
 
     dec call_stack_pointer
-    lda [call_stack_pointer + 1]
-    sbc #0
-    sta [call_stack_pointer + 1]
-    clc
+    lda call_stack_pointer
+    cmp #$ff
+    bne _pop_call_byte_exit
+
+    dec [call_stack_pointer + 1]
+
+    _pop_call_byte_exit:
     ldy #0
     lda (call_stack_pointer),y
+    clc
     rts
 
 _increment_program_counter:
@@ -183,6 +196,9 @@ _get_operand:
 ; Instructions
 
 load_number:
+
+    lda #78
+    jsr $ffee
 
     jsr _get_operand
     sta size
@@ -227,6 +243,9 @@ _set_ptr1:  ; ptr1 = ptr2 - A
 
 compare_equals:
 
+    lda #61
+    jsr $ffee
+
     jsr _get_operand
     sta size
 
@@ -253,6 +272,8 @@ compare_equals:
         bne compare_equals_loop
 
     compare_equals_loop_exit:
+    clc
+
     lda size
     asl
     jsr _free_stack_space
@@ -261,6 +282,9 @@ compare_equals:
     jmp next_instruction
 
 compare_not_equals:
+
+    lda #33
+    jsr $ffee
 
     jsr _get_operand
     sta size
@@ -287,7 +311,8 @@ compare_not_equals:
         cpy size
         bne compare_not_equals_loop
 
-    compare_not_equals_loop_exit:
+    clc
+
     lda size
     asl
     jsr _free_stack_space
@@ -323,6 +348,8 @@ compare_less_than:
         dey
         cpy #255
         bne compare_less_than_loop
+
+    clc
 
     lda size
     asl
@@ -361,6 +388,8 @@ compare_greater_than:
         cpy #255
         bne compare_greater_than_loop
 
+    clc
+
     lda size
     asl
     jsr _free_stack_space
@@ -369,6 +398,9 @@ compare_greater_than:
     jmp next_instruction
 
 add:
+
+    lda #43
+    jsr $ffee
 
     jsr _get_operand
     sta size
@@ -389,6 +421,7 @@ add:
         bne add_loop
 
     clc
+
     lda size
     jsr _free_stack_space
     jmp next_instruction
@@ -415,6 +448,7 @@ subtract:
         bne subtract_loop
 
     clc
+
     lda size
     jsr _free_stack_space
     jmp next_instruction
@@ -427,33 +461,41 @@ divide:
 
     brk
 
-branch_if_false:
+branch_forward_if_false:
+
+    lda #102
+    jsr $ffee
 
     jsr _get_operand
     sta temp
-    
+
     jsr _pop_byte
     cmp #false
-    lda temp
-    beq branch
+    beq branch_forward_branch
     clc
     jmp next_instruction
 
-branch_if_true:
+branch_forward_if_true:
 
     jsr _get_operand
     sta temp
     
     jsr _pop_byte
     cmp #true
-    lda temp
-    beq branch
+    beq branch_forward_branch
     clc
     jmp next_instruction
 
-branch:
+branch_forward:
+
+    lda #70
+    jsr $ffee
 
     jsr _get_operand
+    sta temp
+
+    branch_forward_branch:
+    lda temp
     sec
     sbc #[1 + branch_size]
     sta temp
@@ -468,7 +510,56 @@ branch:
     clc
     jmp next_instruction
 
+branch_backward_if_false:
+
+    jsr _get_operand
+    sta temp
+
+    jsr _pop_byte
+    cmp #false
+    beq branch_backward_branch
+    clc
+    jmp next_instruction
+
+branch_backward_if_true:
+
+    jsr _get_operand
+    sta temp
+    
+    jsr _pop_byte
+    cmp #true
+    beq branch_backward_branch
+    clc
+    jmp next_instruction
+
+branch_backward:
+
+    lda #66
+    jsr $ffee
+
+    jsr _get_operand
+    sta temp
+
+    branch_backward_branch:
+    lda temp
+    adc #[1 + branch_size]
+    sta temp
+    clc
+
+    sec
+    lda program_counter
+    sbc temp
+    sta program_counter
+    lda [program_counter + 1]
+    sbc #0
+    sta [program_counter + 1]
+    clc
+    jmp next_instruction
+
 load_local:
+
+    lda #76
+    jsr $ffee
 
     jsr _get_operand
     sta offset
@@ -505,10 +596,16 @@ load_global:
 
 assign_local:
 
+    lda #65
+    jsr $ffee
+
     jsr _get_operand
     sta offset
     jsr _get_operand
     sta size
+
+    lda #48
+    jsr $ffee
 
     lda current_frame
     adc offset
@@ -518,7 +615,14 @@ assign_local:
     sta [ptr1 + 1]
     clc
 
+    lda #49
+    jsr $ffee
+
+    lda size
     jsr _set_ptr2
+
+    lda #50
+    jsr $ffee
 
     ldy #0
     assign_local_loop:
@@ -536,6 +640,11 @@ assign_local:
 
 function_return:
 
+    lda #82
+    jsr $ffee
+    lda #110
+    jsr $ffee
+
     jsr _pop_call_byte
     sta [program_counter + 1]
     jsr _pop_call_byte
@@ -544,14 +653,25 @@ function_return:
 
 function_call:
 
+    lda #70
+    jsr $ffee
+    lda #110
+    jsr $ffee
+
+    jsr _get_operand
+    sta temp
+    jsr _get_operand
+    sta [temp + 1]
+
     lda program_counter
     jsr _push_call_byte
     lda [program_counter + 1]
     jsr _push_call_byte
+    nop
 
-    jsr _get_operand
+    lda temp
     sta program_counter
-    jsr _get_operand
+    lda [temp + 1]
     sta [program_counter + 1]
     jmp next_instruction
 
@@ -580,6 +700,8 @@ store_stack_top_in_current_frame:
 
 allocate_stack_space:
 
+    lda #91
+    jsr $ffee
     jsr _get_operand
     jsr _allocate_stack_space
     jmp next_instruction
@@ -595,6 +717,9 @@ _allocate_stack_space:  ; A=size
     rts
 
 free_stack_space:
+
+    lda #93
+    jsr $ffee
 
     jsr _get_operand
     jsr _free_stack_space
