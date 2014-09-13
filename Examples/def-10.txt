@@ -1,4 +1,4 @@
 def is_zero x = 255
     return x == 0
 
-a = is_zero 0
+a = is_zero ( 0 )

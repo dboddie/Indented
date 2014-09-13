@@ -481,6 +481,10 @@ def parse_function_call(stream):
         put_tokens(top)
         return False
     
+    token = get_token(stream)
+    if token != tokeniser.arguments_begin_token:
+        raise SyntaxError, "Function arguments must follow '(' at line %i.\n" % tokeniser.line
+    
     function_name, parameters, variables, code, rsize = functions[index]
     
     # Generate code to record the address of the current frame in a frame base
@@ -506,6 +510,10 @@ def parse_function_call(stream):
         
         if current_size != size:
             raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (token, tokeniser.line)
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_end_token:
+        raise SyntaxError, "Function arguments must be terminated with ')' at line %i.\n" % tokeniser.line
     
     # Use the previously stored information about the local variables to
     # determine how much space should be allocated on the stack.

@@ -6,7 +6,7 @@ def is_not_zero x = 255
 
 a = 123
 if is_zero a
-    b = is_zero a
+    b = is_zero ( a )
 
 if is_not_zero a
-    b = is_not_zero a
+    b = is_not_zero ( a )

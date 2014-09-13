@@ -34,6 +34,8 @@ dedent_token = "\td"
 newline_token = "\n"
 assignment_token = "="
 eof_token = "\te"
+arguments_begin_token = "("
+arguments_end_token = ")"
 
 def read_token(stream):
 
@@ -55,7 +57,7 @@ def read_token(stream):
         token = ""
     
     # If the token is a newline then emit this immediately.
-    if token == newline_token:
+    if token in (newline_token, arguments_begin_token, arguments_end_token):
         return token
     
     while True:
@@ -79,6 +81,7 @@ def read_token(stream):
                 at_eof = True
             
             break
+        
         elif ch == "\t" or ch == " ":
             # Substitute four spaces for each tab.
             if ch == "\t":
@@ -92,6 +95,7 @@ def read_token(stream):
                 token += ch
             elif token:
                 break
+        
         elif ch == "\n":
             # Newlines reset the indentation level and end comments and
             # strings. Emit any current token and queue a newline token, or
@@ -104,6 +108,15 @@ def read_token(stream):
                 break
             else:
                 return newline_token
+        
+        elif ch == "(" or ch == ")":
+            # Opening and closing parentheses are emitted as separate tokens.
+            if token:
+                pending_token = ch
+                break
+            else:
+                return ch
+        
         else:
             # Any non-whitespace characters are treated separately.
             

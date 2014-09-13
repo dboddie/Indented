@@ -428,6 +428,9 @@ add:
 
 subtract:
 
+    lda #83
+    jsr $ffee
+
     jsr _get_operand
     sta size
     tax
@@ -604,9 +607,6 @@ assign_local:
     jsr _get_operand
     sta size
 
-    lda #48
-    jsr $ffee
-
     lda current_frame
     adc offset
     sta ptr1
@@ -615,14 +615,8 @@ assign_local:
     sta [ptr1 + 1]
     clc
 
-    lda #49
-    jsr $ffee
-
     lda size
     jsr _set_ptr2
-
-    lda #50
-    jsr $ffee
 
     ldy #0
     assign_local_loop:

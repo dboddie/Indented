@@ -5,6 +5,6 @@ def factorial x = 0
         a = a * x
     return a
 
-A = factorial 1
-B = factorial 2
-C = factorial 3
+A = factorial ( 1 )
+B = factorial ( 2 )
+C = factorial ( 3 )
