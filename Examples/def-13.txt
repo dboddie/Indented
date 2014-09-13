@@ -1,4 +1,4 @@
-def choice x = 0
+def choice x (byte)
     if x == 1
         return choice ( 0 )
     return 4

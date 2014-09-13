@@ -1,5 +1,5 @@
-def is_zero x = 255
+def is_zero x (byte)
     x == 0
 
-def is_not_zero x = 255
+def is_not_zero x (byte)
     x != 0

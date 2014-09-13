@@ -45,7 +45,9 @@ def debug_print(*args):
         print arg,
     print
 
-# Constant handling
+# Constant and type handling
+
+types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4}
 
 def is_constant(token):
 
@@ -64,12 +66,16 @@ def get_size(token):
 
     global current_size
     
+    if is_type(token):
+        current_size = types[token]
+        return current_size
+    
     if is_boolean(token):
         current_size = 1
         return current_size
     
     if is_number(token):
-        current_size = 4
+        current_size = number_size(token)
         return current_size
     
     if is_string(token):
@@ -103,10 +109,32 @@ def is_number(token):
     
     return True
 
+def number_size(token):
+
+    value = int(token)
+    if value >= 0:
+        if value < (1 << 8):
+            return 1
+        elif value < (1 << 16):
+            return 2
+        else:
+            return 4
+    else:
+        if value >= (1 << 7) - (1 << 8):
+            return 1
+        elif value >= (1 << 15) - (1 << 16):
+            return 2
+        else:
+            return 4
+
 def is_string(token):
 
     if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
         return True
+
+def is_type(token):
+
+    return token in types
 
 # Variable handling
 
@@ -363,17 +391,22 @@ def parse_definition(stream):
             
             name = token
             token = get_token(stream)
-            if token != tokeniser.assignment_token:
-                raise SyntaxError, "Expected '=' after parameter name '%s' at line %i." % (
-                    name, tokeniser.line)
-        
-            token = get_token(stream)
-            if not is_constant(token):
-                raise SyntaxError, "Expected constant after parameter name '%s' at line %i." % (
+            if token != tokeniser.arguments_begin_token:
+                raise SyntaxError, "Expected '(' after parameter name '%s' at line %i." % (
                     name, tokeniser.line)
             
-            local_variables.append((name, get_size(token)))
-            parameters.append((name, get_size(token)))
+            type_token = get_token(stream)
+            if not is_type(type_token):
+                raise SyntaxError, "Expected type after parameter name '%s' at line %i." % (
+                    name, tokeniser.line)
+            
+            token = get_token(stream)
+            if token != tokeniser.arguments_end_token:
+                raise SyntaxError, "Expected ')' after type '%s' at line %i." % (
+                    type_token, tokeniser.line)
+        
+            local_variables.append((name, get_size(type_token)))
+            parameters.append((name, get_size(type_token)))
         
         # Tentatively add the function to the list of definitions.
         functions.append([function_name, parameters, local_variables[:], None, 0])

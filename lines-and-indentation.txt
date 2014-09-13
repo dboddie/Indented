@@ -63,15 +63,16 @@ Grammar
 Example code (function definition)
 ----------------------------------
 
-def factorial x
+def factorial x (int8)
     if x == 0
         return 1
     else
-        return x * factorial x - 1
+        return x * factorial(x - 1)
 
 The "def" keyword starts compilation of a function with the name and
 arguments specified before the first newline. The definition ends at the
-position in the file described above.
+position in the file described above. The type of each argument is given in
+parentheses after each name.
 
 The function name could be temporarily added to the module/global dictionary
 when it is first encountered, allowing the definition to contain references
@@ -110,13 +111,6 @@ Problems
 See the lines.py file for a list of current problems in the first
 implementation.
 
-Expressions used as arguments to functions cause problems due to the way
-expressions are parsed, making it impossible to use function calls as the
-first operand in an operation:
-
-  x * factorial x - 1   is not the same as
-  factorial x - 1 * x
-
 The return types of functions are not declared in advance, making it
 problematic when a recursive function call is encountered because we rely on
 having type size information immediately available when parsing. This is
@@ -126,3 +120,15 @@ earlier than calls to themselves.
 
 Consider storing the current frame address on the call stack instead of the
 value stack.
+
+System calls could be defined in the same way as functions, using appropriately
+named parameters and simply containing a return statement. An opcode would be
+generated for the actual system call which packs the arguments into the
+appropriate registers and calls the system routine, writing any result back
+to the stack, ready to be returned by the function.
+
+Functions that should return a value need to check for a trailing return to
+ensure that a default value is returned. By pre-allocating stack space for
+return values and incorporating the code for assigning return values to that
+space, we can ensure that this happens whether a function exits with or without
+a return statement.

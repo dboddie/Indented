@@ -1,4 +1,4 @@
-def is_zero x = 255
+def is_zero x (byte)
     a = 123
     a = 2
     if x == 0
