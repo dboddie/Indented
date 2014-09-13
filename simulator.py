@@ -446,8 +446,8 @@ def run():
         if instruction == end:
             break
         instruction()
-        print "Call: ", memory[call_stack_base:call_stack_pointer]
-        print "Value:", memory[stack_base:stack_pointer]
+        print "Call: ", " ".join(map(lambda x: "%02x" % x, memory[call_stack_base:call_stack_pointer]))
+        print "Value:", " ".join(map(lambda x: "%02x" % x, memory[stack_base:stack_pointer]))
         if step:
             q = raw_input(">")
             if q == "c":

@@ -677,6 +677,9 @@ function_call:
 
 load_current_frame_address:
 
+    lda #108
+    jsr $ffee
+
     lda current_frame
     jsr _push_byte
     lda [current_frame + 1]
@@ -684,6 +687,9 @@ load_current_frame_address:
     jmp next_instruction
 
 store_stack_top_in_current_frame:
+
+    lda #115
+    jsr $ffee
 
     jsr _get_operand
     sta size
@@ -740,6 +746,9 @@ _free_stack_space:  ; A=size
 
 pop_current_frame_address:
 
+    lda #80
+    jsr $ffee
+
     jsr _pop_byte
     sta [current_frame + 1]
     jsr _pop_byte
@@ -747,6 +756,9 @@ pop_current_frame_address:
     jmp next_instruction
 
 copy_value:
+
+    lda #67
+    jsr $ffee
 
     jsr _get_operand
     sta offset
@@ -771,6 +783,7 @@ copy_value:
         cpy size
         bne copy_value_loop
 
+    clc
     lda size
     jsr _allocate_stack_space
     jmp next_instruction

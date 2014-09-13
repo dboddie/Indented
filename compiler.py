@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pprint, string, sys
-import generator, simulator, tokeniser
+import generator, opcodes, simulator, tokeniser
 from tokeniser import read_token
 
 # Token handling - lists of incoming tokens and those tentatively processed
@@ -850,7 +850,7 @@ if __name__ == "__main__":
     run = sys.argv[1] == "-r"
     save = sys.argv[1] == "-s"
     
-    load_address = 0x0e00
+    load_address = 0x0e00 + opcodes.end + 2
     
     try:
         parse_program(stream)
