@@ -43,8 +43,11 @@ allocate_stack_space, \
 free_stack_space, \
 pop_current_frame_address, \
 copy_value, \
-end = range(0, 54, 2)
+sys_call, \
+end = range(0, 56, 2)
 
 address_size = 2
 branch_size = 1
 memory_size = 32768
+register_size = 1
+system_call_return_size = 4

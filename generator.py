@@ -80,10 +80,20 @@ def link(functions, base_address):
 
 # Generation functions
 
-def generate_number(token, size):
+def generate_number(token, size, base):
 
     global code
-    value = int(token)
+    value = int(token, base)
+    code += [load_number, size]
+    i = 0
+    while i < size:
+        code += [value & 0xff]
+        value = value >> 8
+        i += 1
+
+def generate_boolean(value, size):
+
+    global code
     code += [load_number, size]
     i = 0
     while i < size:
@@ -242,6 +252,14 @@ def generate_exit_function():
 
     global code
     code += ["exit_function", None]
+
+def generate_system_call(total_args_size):
+
+    global code
+    
+    # The arguments themselves should have already been pushed onto the stack.
+    # The total size allows us to generate code to extract them.
+    code += [sys_call, total_args_size]
 
 def generate_end():
 

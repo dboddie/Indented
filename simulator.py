@@ -383,6 +383,37 @@ def copy_value():
     
     stack_pointer += size
 
+def sys_call():
+
+    size = get_operand()
+    temp = size
+
+    format = []
+    while temp > 2:
+        value = pop_byte()
+        if temp == 5:
+            Y = value
+            format.insert(0, "%x" % Y)
+        elif temp == 4:
+            X = value
+            format.insert(0, "%x" % X)
+        elif temp == 3:
+            A = value
+            format.insert(0, "%x" % A)
+        temp -= 1
+
+    address_high = pop_byte()
+    address_low = pop_byte()
+    format.insert(0, "%x" % (address_low | (address_high << 8)))
+
+    q = raw_input("system call (%s) returns? " % " ".join(format))
+    v = int(q)
+    i = 0
+    while i < opcodes.system_call_return_size:
+        push_byte(v & 0xff)
+        v = v >> 8
+        i += 1
+
 def end():
 
     raise StopIteration
@@ -414,6 +445,7 @@ lookup = {
     opcodes.free_stack_space: free_stack_space,
     opcodes.pop_current_frame_address: pop_current_frame_address,
     opcodes.copy_value: copy_value,
+    opcodes.sys_call: sys_call,
     opcodes.end: end
     }
 

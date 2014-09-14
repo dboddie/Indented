@@ -29,6 +29,10 @@
 .alias instruction_high     $7f
 .alias temp                 $80
 
+.alias sys_A                $82
+.alias sys_X                $83
+.alias sys_Y                $84
+
 .alias true 255
 .alias false 0
 
@@ -65,6 +69,7 @@ lookup:
 .byte <free_stack_space, >free_stack_space
 .byte <pop_current_frame_address, >pop_current_frame_address
 .byte <copy_value, >copy_value
+.byte <system_call, >system_call
 .byte <end, >end
 
 program:
@@ -100,8 +105,8 @@ run:
 
     next_instruction:
 
-    lda #46
-    jsr $ffee
+    ;lda #46
+    ;jsr $ffee
 
     ; The opcode is used as the low byte of the address into the lookup table.
     ; Copy this byte into the low byte of the instruction address register.
@@ -197,8 +202,8 @@ _get_operand:
 
 load_number:
 
-    lda #78
-    jsr $ffee
+    ;lda #78
+    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -217,7 +222,7 @@ load_number:
     clc
     jmp next_instruction
 
-_set_ptr2:  ; ptr2 = stack_pointer - A
+_set_ptr2:  ; ptr2 = stack_pointer - size
 
     sec
     lda stack_pointer
@@ -243,8 +248,8 @@ _set_ptr1:  ; ptr1 = ptr2 - A
 
 compare_equals:
 
-    lda #61
-    jsr $ffee
+    ;lda #61
+    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -283,8 +288,8 @@ compare_equals:
 
 compare_not_equals:
 
-    lda #33
-    jsr $ffee
+    ;lda #33
+    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -399,8 +404,8 @@ compare_greater_than:
 
 add:
 
-    lda #43
-    jsr $ffee
+    ;lda #43
+    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -428,8 +433,8 @@ add:
 
 subtract:
 
-    lda #83
-    jsr $ffee
+    ;lda #83
+    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -466,8 +471,8 @@ divide:
 
 branch_forward_if_false:
 
-    lda #102
-    jsr $ffee
+    ;lda #102
+    ;jsr $ffee
 
     jsr _get_operand
     sta temp
@@ -491,8 +496,8 @@ branch_forward_if_true:
 
 branch_forward:
 
-    lda #70
-    jsr $ffee
+    ;lda #70
+    ;jsr $ffee
 
     jsr _get_operand
     sta temp
@@ -537,8 +542,8 @@ branch_backward_if_true:
 
 branch_backward:
 
-    lda #66
-    jsr $ffee
+    ;lda #66
+    ;jsr $ffee
 
     jsr _get_operand
     sta temp
@@ -561,8 +566,8 @@ branch_backward:
 
 load_local:
 
-    lda #76
-    jsr $ffee
+    ;lda #76
+    ;jsr $ffee
 
     jsr _get_operand
     sta offset
@@ -599,8 +604,8 @@ load_global:
 
 assign_local:
 
-    lda #65
-    jsr $ffee
+    ;lda #65
+    ;jsr $ffee
 
     jsr _get_operand
     sta offset
@@ -615,7 +620,6 @@ assign_local:
     sta [ptr1 + 1]
     clc
 
-    lda size
     jsr _set_ptr2
 
     ldy #0
@@ -634,10 +638,10 @@ assign_local:
 
 function_return:
 
-    lda #82
-    jsr $ffee
-    lda #110
-    jsr $ffee
+    ;lda #82
+    ;jsr $ffee
+    ;lda #110
+    ;jsr $ffee
 
     jsr _pop_call_byte
     sta [program_counter + 1]
@@ -647,10 +651,10 @@ function_return:
 
 function_call:
 
-    lda #70
-    jsr $ffee
-    lda #110
-    jsr $ffee
+    ;lda #70
+    ;jsr $ffee
+    ;lda #110
+    ;jsr $ffee
 
     jsr _get_operand
     sta temp
@@ -671,8 +675,8 @@ function_call:
 
 load_current_frame_address:
 
-    lda #108
-    jsr $ffee
+    ;lda #108
+    ;jsr $ffee
 
     lda current_frame
     jsr _push_byte
@@ -682,8 +686,8 @@ load_current_frame_address:
 
 store_stack_top_in_current_frame:
 
-    lda #115
-    jsr $ffee
+    ;lda #115
+    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -700,8 +704,8 @@ store_stack_top_in_current_frame:
 
 allocate_stack_space:
 
-    lda #91
-    jsr $ffee
+    ;lda #91
+    ;jsr $ffee
     jsr _get_operand
     jsr _allocate_stack_space
     jmp next_instruction
@@ -718,8 +722,8 @@ _allocate_stack_space:  ; A=size
 
 free_stack_space:
 
-    lda #93
-    jsr $ffee
+    ;lda #93
+    ;jsr $ffee
 
     jsr _get_operand
     jsr _free_stack_space
@@ -740,8 +744,8 @@ _free_stack_space:  ; A=size
 
 pop_current_frame_address:
 
-    lda #80
-    jsr $ffee
+    ;lda #80
+    ;jsr $ffee
 
     jsr _pop_byte
     sta [current_frame + 1]
@@ -751,8 +755,8 @@ pop_current_frame_address:
 
 copy_value:
 
-    lda #67
-    jsr $ffee
+    ;lda #67
+    ;jsr $ffee
 
     jsr _get_operand
     sta offset
@@ -782,9 +786,63 @@ copy_value:
     jsr _allocate_stack_space
     jmp next_instruction
 
+system_call:
+
+    jsr _get_operand
+    sta size
+
+    cmp #4
+    beq system_call_read_4
+    cmp #3
+    beq system_call_read_3
+    cmp #2
+    beq system_call_read_2
+
+    jsr _pop_byte
+    sta sys_Y
+    system_call_read_4:
+    jsr _pop_byte
+    sta sys_X
+    system_call_read_3:
+    jsr _pop_byte
+    sta sys_A
+    system_call_read_2:
+
+    jsr _pop_byte
+    sta [temp + 1]
+    jsr _pop_byte
+    sta temp
+
+    lda sys_A
+    ldx sys_X
+    ldy sys_Y
+
+    ; Call a subroutine that jumps directly into the system routine. When the
+    ; system routine exits, it will return to the code after this instruction.
+    jsr system_call_call
+
+    clc
+
+    ; Push the registers onto the stack.
+
+    sty temp            ; Save Y because the _push_byte routine uses it.
+    jsr _push_byte
+    txa
+    jsr _push_byte
+    lda temp            ; Recover the original Y register value.
+    jsr _push_byte
+    lda #0              ; Add a padding byte.
+    jsr _push_byte
+
+    jmp next_instruction
+
+system_call_call:   ; temp,temp+1=address of system routine
+
+    jmp (temp)      ; returns to caller
+
 end:
-    lda #69
-    jsr $ffee
+    ;lda #69
+    ;jsr $ffee
     clc
     rts
 

@@ -36,6 +36,7 @@ assignment_token = "="
 eof_token = "\te"
 arguments_begin_token = "("
 arguments_end_token = ")"
+system_call_token = "_call"
 
 def read_token(stream):
 

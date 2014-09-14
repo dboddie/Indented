@@ -125,7 +125,11 @@ System calls could be defined in the same way as functions, using appropriately
 named parameters and simply containing a return statement. An opcode would be
 generated for the actual system call which packs the arguments into the
 appropriate registers and calls the system routine, writing any result back
-to the stack, ready to be returned by the function.
+to the stack, ready to be returned by the function. The opcode should be
+explicitly given, using a keyword to represent it in programs.
+
+def vdu ch (byte)
+    _call(0xffee ch)
 
 Functions that should return a value need to check for a trailing return to
 ensure that a default value is returned. By pre-allocating stack space for

@@ -45,6 +45,13 @@ def debug_print(*args):
         print arg,
     print
 
+# System call definitions
+
+system_call_parameters = [("address", opcodes.address_size),
+                          ("A", opcodes.register_size),
+                          ("X", opcodes.register_size),
+                          ("Y", opcodes.register_size)]
+
 # Constant and type handling
 
 types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4}
@@ -88,6 +95,13 @@ def is_boolean(token):
 
     return token == "True" or token == "False"
 
+def boolean_value(token):
+
+    if token == "True":
+        return 255
+    else:
+        return 0
+
 def is_function_name(token):
 
     return is_variable(token)
@@ -101,9 +115,15 @@ def is_number(token):
             i = 1
     else:
         i = 0
-        
+    
+    if token[i:i + 2] == "0x":
+        allowed = "0123456789abcdefABCDEF"
+        i += 2
+    else:
+        allowed = "0123456789"
+    
     while i < len(token):
-        if token[i] not in "0123456789":
+        if token[i] not in allowed:
             return False
         i += 1
     
@@ -111,7 +131,14 @@ def is_number(token):
 
 def number_size(token):
 
-    value = int(token)
+    base = get_number_base(token)
+    if base == 16:
+        start = token.find("0x")
+        digits = len(token) - start - 2
+        return (digits / 2) + (digits % 2)
+    else:
+        value = int(token, base)
+    
     if value >= 0:
         if value < (1 << 8):
             return 1
@@ -126,6 +153,13 @@ def number_size(token):
             return 2
         else:
             return 4
+
+def get_number_base(token):
+
+    if "0x" in token:
+        return 16
+    else:
+        return 10
 
 def is_string(token):
 
@@ -608,6 +642,8 @@ def parse_operand(stream):
         return True
     elif parse_function_call(stream):
         return True
+    elif parse_system_call(stream):
+        return True
     else:
         return False
 
@@ -629,12 +665,17 @@ def parse_operation(stream):
     if current_size == 0:
         raise SyntaxError, "Operand 1 has zero size at line %i." % tokeniser.line
     
+    size1 = current_size
+    
     if not parse_operand(stream):
         # Not a value, but one was expected, so report an error.
         raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
     
     if current_size == 0:
         raise SyntaxError, "Operand 2 has zero size at line %i." % tokeniser.line
+    
+    if current_size != size1:
+        raise SyntaxError, "Sizes of operands do not match at line %i." % tokeniser.line
     
     if token == "==":
         debug_print("equals", token)
@@ -704,7 +745,7 @@ def parse_program(stream):
 
 def parse_return(stream):
 
-    '<return> = "return" <expression>'
+    '<return> = "return" [<expression>]'
     
     ### Handle value-less returns and ensure that all returns in a function
     ### body consistently use the same type.
@@ -719,10 +760,16 @@ def parse_return(stream):
     if not in_function:
         raise SyntaxError, "Cannot use return from outside function at line %i." % tokeniser.line
     
-    if not parse_expression(stream):
+    if parse_separator(stream):
+        # No return value supplied. Set the return value size to zero.
+        functions[-1][-1] = 0
+    
+    elif parse_expression(stream):
+        functions[-1][-1] = current_size
+    
+    else:
         raise SyntaxError, "Invalid return from function at line %i." % tokeniser.line
     
-    functions[-1][-1] = current_size
     generator.generate_exit_function()
     return True
 
@@ -805,6 +852,71 @@ def parse_statement(stream):
     
     return True
 
+def parse_system_call(stream):
+
+    '<system call> = _call [<argument>+]'
+    
+    global current_size
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != tokeniser.system_call_token:
+        put_tokens(top)
+        return False
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_begin_token:
+        raise SyntaxError, "Function arguments must follow '(' at line %i.\n" % tokeniser.line
+    
+    # Parse the arguments corresponding to the system call parameters.
+    # These take the form <address> <A> <X> <Y>.
+    
+    total_args_size = 0
+    
+    for name, size in system_call_parameters:
+    
+        top = len(used)
+        token = get_token(stream)
+        
+        if token == tokeniser.arguments_end_token:
+            # If we encounter a closing parenthesis, check that at least the
+            # address has been given.
+            if name != "address":
+                # Recover the token and break.
+                put_tokens(top)
+                break
+            else:
+                raise SyntaxError, "System call lacks an address at line %i.\n" % tokeniser.line
+        else:
+            # Recover the token.
+            put_tokens(top)
+        
+        if not parse_expression(stream):
+            raise SyntaxError, "Invalid system call argument for parameter '%s' at line %i.\n" % (name, tokeniser.line)
+        
+        if current_size != size:
+            raise SyntaxError, "Incompatible types in system call argument for parameter '%s' at line %i.\n" % (name, tokeniser.line)
+        
+        total_args_size += size
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_end_token:
+        raise SyntaxError, "System call arguments must be terminated with ')' at line %i.\n" % tokeniser.line
+    
+    debug_print("system call")
+    
+    # Call the system routine with the total size of the arguments supplied.
+    # This enables the generated code to retrieve the arguments from the stack.
+    
+    generator.generate_system_call(total_args_size)
+    
+    # Set the size of the return value to ensure that it is assigned or
+    # discarded as necessary.
+    current_size = opcodes.system_call_return_size
+    
+    return True
+
 def parse_value(stream):
 
     "<value> = <number> | <string>"
@@ -817,7 +929,15 @@ def parse_value(stream):
     if is_number(token):
         debug_print("constant", token)
         size = get_size(token)
-        generator.generate_number(token, size)
+        base = get_number_base(token)
+        generator.generate_number(token, size, base)
+        current_size = size
+        return True
+    
+    elif is_boolean(token):
+        debug_print("constant", token)
+        size = get_size(token)
+        generator.generate_boolean(boolean_value(token), size)
         current_size = size
         return True
     
