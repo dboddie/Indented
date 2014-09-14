@@ -1,0 +1,33 @@
+def mode number (byte)
+    _call(0xffee 22)
+    _call(0xffee number)
+
+def plot x (byte) y (byte) ch (byte)
+    _call(0xffee 31)
+    _call(0xffee x)
+    _call(0xffee y)
+    _call(0xffee ch)
+
+def check_keys
+    yxac = _call(0xfff4 129 -98 255)
+    if yxac == 0xffff8101
+        return 1
+    yxac = _call(0xfff4 129 -67 255)
+    if yxac == 0xffff8101
+        return 2
+    return 0
+
+mode(5)
+x = 9
+y = 15
+
+while True
+    plot(x y 32)
+    key = check_keys()
+    if key == 1
+        if x > 0
+            x = x - 1
+    if key == 2
+        if x < 19
+            x = x + 1
+    plot(x y 42)

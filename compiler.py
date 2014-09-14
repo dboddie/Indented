@@ -54,7 +54,7 @@ system_call_parameters = [("address", opcodes.address_size),
 
 # Constant and type handling
 
-types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4}
+types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4, "string": None}
 
 def is_constant(token):
 
@@ -72,10 +72,6 @@ def is_constant(token):
 def get_size(token):
 
     global current_size
-    
-    if is_type(token):
-        current_size = types[token]
-        return current_size
     
     if is_boolean(token):
         current_size = 1
@@ -210,6 +206,7 @@ def local_variable_offset(index):
 
 def find_global_variable(token):
 
+    index = 0
     for name, size in global_variables:
         if name == token:
             debug_print("global variable", token)
@@ -439,8 +436,8 @@ def parse_definition(stream):
                 raise SyntaxError, "Expected ')' after type '%s' at line %i." % (
                     type_token, tokeniser.line)
         
-            local_variables.append((name, get_size(type_token)))
-            parameters.append((name, get_size(type_token)))
+            local_variables.append((name, types[type_token]))
+            parameters.append((name, types[type_token]))
         
         # Tentatively add the function to the list of definitions.
         functions.append([function_name, parameters, local_variables[:], None, 0])
@@ -931,24 +928,23 @@ def parse_value(stream):
         size = get_size(token)
         base = get_number_base(token)
         generator.generate_number(token, size, base)
-        current_size = size
-        return True
     
     elif is_boolean(token):
         debug_print("constant", token)
         size = get_size(token)
         generator.generate_boolean(boolean_value(token), size)
-        current_size = size
-        return True
     
     elif is_string(token):
         debug_print("constant", token)
-        current_size = len(token) - 2
-        return True
+        size = get_size(token)
+        generator.generate_string(token, size)
     
     else:
         put_tokens(top)
         return False
+    
+    current_size = size
+    return True
 
 def parse_variable(stream):
 

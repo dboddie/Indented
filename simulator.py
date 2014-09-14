@@ -407,6 +407,8 @@ def sys_call():
     format.insert(0, "%x" % (address_low | (address_high << 8)))
 
     q = raw_input("system call (%s) returns? " % " ".join(format))
+    if not q:
+        q = "0"
     v = int(q)
     i = 0
     while i < opcodes.system_call_return_size:

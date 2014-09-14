@@ -1,0 +1,4 @@
+i = 32
+while i < 128
+    _call ( 0xffee i )
+    i = i + 1

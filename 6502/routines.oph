@@ -105,9 +105,6 @@ run:
 
     next_instruction:
 
-    ;lda #46
-    ;jsr $ffee
-
     ; The opcode is used as the low byte of the address into the lookup table.
     ; Copy this byte into the low byte of the instruction address register.
     jsr _get_instruction
@@ -182,9 +179,11 @@ _increment_program_counter:
 
     clc
     inc program_counter
-    lda [program_counter + 1]
-    adc #0
-    sta [program_counter + 1]
+    bne _increment_program_counter_exit
+    
+    inc [program_counter + 1]
+
+    _increment_program_counter_exit:
     clc
     rts
 
@@ -201,9 +200,6 @@ _get_operand:
 ; Instructions
 
 load_number:
-
-    ;lda #78
-    ;jsr $ffee
 
     jsr _get_operand
     sta size
@@ -821,18 +817,29 @@ system_call:
     ; system routine exits, it will return to the code after this instruction.
     jsr system_call_call
 
-    clc
-
     ; Push the registers onto the stack.
 
     sty temp            ; Save Y because the _push_byte routine uses it.
-    jsr _push_byte
+    sta [temp + 1]
+
+    bcc system_call_carry_clear
+    clc
+    lda #1
+    jsr _push_byte      ; Push a value of 1 to indicate that carry was set.
+    bcc system_call_push
+
+    system_call_carry_clear:
+    lda #0
+    jsr _push_byte      ; Push a value of 0 to indicate that carry was clear.
+
+    system_call_push:
+
+    lda [temp + 1]
+    jsr _push_byte      ; Push A.
     txa
-    jsr _push_byte
+    jsr _push_byte      ; Push X.
     lda temp            ; Recover the original Y register value.
-    jsr _push_byte
-    lda #0              ; Add a padding byte.
-    jsr _push_byte
+    jsr _push_byte      ; Push Y.
 
     jmp next_instruction
 
@@ -841,8 +848,12 @@ system_call_call:   ; temp,temp+1=address of system routine
     jmp (temp)      ; returns to caller
 
 end:
-    ;lda #69
-    ;jsr $ffee
+    lda #69
+    jsr $ffee
+    lda #78
+    jsr $ffee
+    lda #68
+    jsr $ffee
     clc
     rts
 

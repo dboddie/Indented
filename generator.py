@@ -101,6 +101,15 @@ def generate_boolean(value, size):
         value = value >> 8
         i += 1
 
+def generate_string(token, size):
+
+    global code
+    code += [load_number, size]
+    i = 0
+    while i < size:
+        code += [ord(token[i])]
+        i += 1
+
 def generate_equals(size):
 
     global code

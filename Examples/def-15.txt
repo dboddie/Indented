@@ -1,0 +1,4 @@
+def fn x (byte)
+    return x
+
+fn(123)

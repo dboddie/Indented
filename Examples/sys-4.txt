@@ -1,0 +1,5 @@
+def mode number (byte)
+    _call(0xffee 22)
+    _call(0xffee number)
+
+mode(6)

@@ -27,7 +27,6 @@ pending_token = ""
 in_comment = False
 in_string = False
 at_eof = False
-pending_operands = 0
 
 indent_token = "\ti"
 dedent_token = "\td"
@@ -37,6 +36,20 @@ eof_token = "\te"
 arguments_begin_token = "("
 arguments_end_token = ")"
 system_call_token = "_call"
+
+def reset():
+
+    global at_eof, in_comment, in_string, indent, indent_stack, line, newline
+    global pending_token
+    
+    line = 1
+    newline = False
+    indent = 0
+    indent_stack = [0]
+    pending_token = ""
+    in_comment = False
+    in_string = False
+    at_eof = False
 
 def read_token(stream):
 
@@ -151,13 +164,12 @@ def read_token(stream):
 
 def end_statement():
 
-    global indent, in_comment, in_string, newline, pending_operands
+    global indent, in_comment, in_string, newline
     
     indent = 0
     newline = True
     in_comment = False
     in_string = False
-    pending_operands = 0
 
 
 if __name__ == "__main__":
