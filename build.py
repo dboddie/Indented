@@ -73,6 +73,7 @@ if __name__ == "__main__":
     
     compiler.save_opcodes_oph("6502/program.oph")
     program_length = len(compiler.generator.code)
+    print "Program is", program_length, "bytes long."
     
     system("ophis 6502/routines.oph -o CODE")
     code = open("CODE").read()
@@ -108,6 +109,6 @@ if __name__ == "__main__":
     except UEFfile.UEFfile_error:
         sys.stderr.write("Couldn't write the new executable to %s.\n" % out_uef_file)
         sys.exit(1)
-
+    
     # Exit
     sys.exit()

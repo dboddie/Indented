@@ -629,9 +629,46 @@ def parse_newline(stream):
         put_tokens(top)
         return False
 
+unary_operators = ("not", "-")
+
 def parse_operand(stream):
 
-    "<operand> = <value> | <function call>"
+    '<operand> = ["not" | "-"] <operand value>'
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    # Find an optional unary operator.
+    if token in unary_operators:
+        require_value = True
+    else:
+        put_tokens(top)
+        require_value = False
+    
+    if parse_operand_value(stream):
+    
+        if token == tokeniser.logical_not_token:
+            if current_size != 1:
+                raise SyntaxError, "Invalid size for logical not operation at line %i." % tokeniser.line
+            generator.generate_logical_not()
+            return True
+        
+        elif token == tokeniser.minus_token:
+            generator.generate_minus(current_size)
+            return True
+        
+        else:
+            return True
+    
+    elif require_value:
+        raise SyntaxError, "An operand was expected after a unary operator at line %i." % tokeniser.line
+    else:
+        put_tokens(top)
+        return False
+
+def parse_operand_value(stream):
+
+    '<operand value> = <value> | <variable> | <function call> | <system call>'
     
     if parse_value(stream):
         return True
@@ -644,11 +681,11 @@ def parse_operand(stream):
     else:
         return False
 
-operators = ("==", "!=", "<", ">", "+", "-", "*", "/")
+operators = ("==", "!=", "<", ">", "+", "-", "*", "/", "and", "or")
 
 def parse_operation(stream):
 
-    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" <operand>'
+    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" <operand>'
     
     global current_size
     
@@ -709,6 +746,24 @@ def parse_operation(stream):
     elif token == "/":
         debug_print("divide", token)
         generator.generate_divide(current_size)
+    
+    elif token == "and":
+    
+        if current_size != 1:
+            raise SyntaxError, "Operands have an invalid size for logical and operation at line %i." % tokeniser.line
+        
+        debug_print("and", token)
+        generator.generate_logical_and()
+        current_size = 1
+    
+    elif token == "or":
+    
+        if current_size != 1:
+            raise SyntaxError, "Operands have an invalid size for logical or operation at line %i." % tokeniser.line
+        
+        debug_print("or", token)
+        generator.generate_logical_or()
+        current_size = 1
     
     return True
 

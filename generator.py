@@ -150,6 +150,26 @@ def generate_divide(size):
     global code
     code += [divide, size]
 
+def generate_logical_and():
+
+    global code
+    code += [logical_and]
+
+def generate_logical_or():
+
+    global code
+    code += [logical_or]
+
+def generate_logical_not():
+
+    global code
+    code += [logical_not]
+
+def generate_minus(size):
+
+    global code
+    code += [minus, size]
+
 def generate_if():
 
     global code

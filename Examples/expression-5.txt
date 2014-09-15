@@ -1,0 +1,4 @@
+a = False or False
+b = False or True
+c = True or False
+d = True or True

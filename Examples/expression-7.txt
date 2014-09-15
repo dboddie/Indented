@@ -1,0 +1,14 @@
+a = not False
+b = not True
+c = False or not False
+d = False or not True
+e = True or not False
+f = True or not True
+g = not False or False
+h = not False or True
+i = not True or False
+j = not True or True
+k = not False or not False
+l = not False or not True
+m = not True or not False
+n = not True or not True

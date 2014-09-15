@@ -218,6 +218,47 @@ def divide(value):
 
     pass
 
+def logical_and():
+
+    operand2 = pop_byte()
+    operand1 = pop_byte()
+    if operand1 and operand2:
+        push_byte(true)
+    else:
+        push_byte(false)
+
+def logical_or():
+
+    operand2 = pop_byte()
+    operand1 = pop_byte()
+    if operand1 or operand2:
+        push_byte(true)
+    else:
+        push_byte(false)
+
+def logical_not():
+
+    operand1 = pop_byte()
+    if operand1:
+        push_byte(false)
+    else:
+        push_byte(true)
+
+def minus():
+
+    size = get_operand()
+    v = 0
+    i = 0
+    while i < size:
+        v = (v << 8) | pop_byte()
+        i += 1
+    
+    v = -v
+    i = 0
+    while i < size:
+        push_byte(v & 0xff)
+        i += 1
+
 def branch_forward_if_false():
 
     global program_counter
@@ -430,6 +471,10 @@ lookup = {
     opcodes.subtract: subtract,
     opcodes.multiply: multiply,
     opcodes.divide: divide,
+    opcodes.logical_and: logical_and,
+    opcodes.logical_or: logical_or,
+    opcodes.logical_not: logical_not,
+    opcodes.minus: minus,
     opcodes.branch_forward_if_false: branch_forward_if_false,
     opcodes.branch_forward_if_true: branch_forward_if_true,
     opcodes.branch_forward: branch_forward,

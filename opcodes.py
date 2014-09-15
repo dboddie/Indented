@@ -26,6 +26,10 @@ add, \
 subtract, \
 multiply, \
 divide, \
+logical_and, \
+logical_or, \
+logical_not, \
+minus, \
 branch_forward_if_false, \
 branch_forward_if_true, \
 branch_forward, \
@@ -44,7 +48,7 @@ free_stack_space, \
 pop_current_frame_address, \
 copy_value, \
 sys_call, \
-end = range(0, 56, 2)
+end = range(0, 64, 2)
 
 address_size = 2
 branch_size = 1

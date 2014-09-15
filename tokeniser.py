@@ -36,6 +36,8 @@ eof_token = "\te"
 arguments_begin_token = "("
 arguments_end_token = ")"
 system_call_token = "_call"
+logical_not_token = "not"
+minus_token = "-"
 
 def reset():
 

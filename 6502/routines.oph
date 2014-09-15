@@ -52,6 +52,10 @@ lookup:
 .byte <subtract, >subtract
 .byte <multiply, >multiply
 .byte <divide, >divide
+.byte <logical_and, >logical_and
+.byte <logical_or, >logical_or
+.byte <logical_not, >logical_not
+.byte <minus, >minus
 .byte <branch_forward_if_false, >branch_forward_if_false
 .byte <branch_forward_if_true, >branch_forward_if_true
 .byte <branch_forward, >branch_forward
@@ -462,6 +466,35 @@ multiply:
     brk
 
 divide:
+
+    brk
+
+logical_and:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    and temp
+    jsr _push_byte
+    jmp next_instruction
+
+logical_or:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    ora temp
+    jsr _push_byte
+    jmp next_instruction
+
+logical_not:
+
+    jsr _pop_byte
+    eor #true
+    jsr _push_byte
+    jmp next_instruction
+
+minus:
 
     brk
 
