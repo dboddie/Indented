@@ -516,10 +516,25 @@ def parse_eof(stream):
 
 def parse_expression(stream):
 
-    "<expression> = <operand> [<operator> <operand>]+"
+    '<expression> = ["("] <operand> [<operator> <operand>]+ [")"]'
     
-    if not parse_operand(stream):
-        return False
+    top = len(used)
+    token = get_token(stream)
+    
+    if token == "(":
+        if not parse_expression(stream):
+            raise SyntaxError, "Invalid expression at line %i." % tokeniser.line
+        
+        token = get_token(stream)
+        if token != ")":
+            raise SyntaxError, "Expected closing ')' at line %i." % tokeniser.line
+        
+    else:
+        # Just look for an operand.
+        put_tokens(top)
+        
+        if not parse_operand(stream):
+            return False
     
     while True:
     
@@ -701,8 +716,8 @@ def parse_operation(stream):
     
     size1 = current_size
     
-    if not parse_operand(stream):
-        # Not a value, but one was expected, so report an error.
+    if not parse_expression(stream):
+        # Not an expression, but one was expected, so report an error.
         raise SyntaxError, "Incomplete operation at line %i." % tokeniser.line
     
     if current_size == 0:

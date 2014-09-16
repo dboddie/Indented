@@ -1,0 +1,5 @@
+def check a (int16)
+    b = (a == a) and (a == a)
+    b = (a == a) and a == a
+
+check(0x0001)

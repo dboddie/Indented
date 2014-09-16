@@ -1,0 +1,2 @@
+def check a (int16)
+    b = a == a and (a == a)
