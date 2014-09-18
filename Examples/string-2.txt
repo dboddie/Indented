@@ -1,0 +1,5 @@
+a = "Hello world"
+a = "Hello\nworld"
+a = "Hello\tworld"
+a = "Hello\\world"
+a = "Hello\00world"

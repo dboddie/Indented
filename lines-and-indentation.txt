@@ -136,3 +136,8 @@ ensure that a default value is returned. By pre-allocating stack space for
 return values and incorporating the code for assigning return values to that
 space, we can ensure that this happens whether a function exits with or without
 a return statement.
+
+For strings, but certainly for arrays, it would be useful to avoid passing them
+by value, so the opcodes for loading strings and arrays could just push their
+addresses onto the stack. This would also make it possible to use arrays with
+system calls.

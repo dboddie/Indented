@@ -82,7 +82,7 @@ def get_size(token):
         return current_size
     
     if is_string(token):
-        current_size = len(token) - 2
+        current_size = len(decode_string(token))
         return current_size
     
     raise SyntaxError, "Unknown size for constant '%s' at line %i." % (token, tokeniser.line)
@@ -160,11 +160,57 @@ def get_number_base(token):
 def is_string(token):
 
     if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
-        return True
+        return decode_string(token)
+    else:
+        return False
 
 def is_type(token):
 
     return token in types
+
+def decode_string(token):
+
+    # Discard the leading and trailing quotation marks and convert any encoded
+    # characters to bytes.
+    new = ""
+    i = 1
+    
+    while i < len(token) - 1:
+        ch = token[i]
+        if ch == "\\":
+            j = i + 1
+            if j == len(token) - 1:
+                raise SyntaxError, "Incomplete escape at line %i." % tokeniser.line
+            ch = token[j]
+            if ch == "\\":
+                new += ch
+            elif ch == '"':
+                new += ch
+            elif ch == "n":
+                new += "\n"
+            elif ch == "r":
+                new += "\r"
+            elif ch == "n":
+                new += "\n"
+            elif ch == "t":
+                new += "\t"
+            elif ch in string.hexdigits and j < len(token) - 2:
+                total = string.hexdigits.index(ch.lower()) << 8
+                j += 1
+                ch = token[j]
+                if ch in string.hexdigits:
+                    total += string.hexdigits.index(ch.lower())
+                    new += chr(total)
+                else:
+                    raise SyntaxError, "Invalid escape at line %i." % tokeniser.line
+            else:
+                raise SyntaxError, "Invalid escape at line %i." % tokeniser.line
+            i = j + 1
+        else:
+            new += ch
+            i += 1
+    
+    return new
 
 # Variable handling
 
@@ -1007,7 +1053,8 @@ def parse_value(stream):
     elif is_string(token):
         debug_print("constant", token)
         size = get_size(token)
-        generator.generate_string(token, size)
+        decoded_string = decode_string(token)
+        generator.generate_string(decoded_string, size)
     
     else:
         put_tokens(top)
