@@ -869,19 +869,32 @@ def parse_operation(stream):
         generator.generate_logical_or()
         current_size = 1
     
+    # The bitwise AND operation truncates the result to the size of the second
+    # operand.
+    
     elif token == "&":
     
         debug_print("&", token)
         generator.generate_bitwise_and(size1, current_size)
     
+    # The shift operators are also asymmetric, with the second operand
+    # typically being only a single byte, but the result is the same size as
+    # the first operand.
+    
     elif token == "<<":
     
+        if current_size != opcodes.shift_size:
+            raise SyntaxError, "Invalid size for shift at line %i." % tokeniser.line
+        
         debug_print("<<", token)
         current_size = size1
         generator.generate_left_shift(current_size)
     
     elif token == ">>":
     
+        if current_size != opcodes.shift_size:
+            raise SyntaxError, "Invalid size for shift at line %i." % tokeniser.line
+        
         debug_print(">>", token)
         current_size = size1
         generator.generate_right_shift(current_size)
