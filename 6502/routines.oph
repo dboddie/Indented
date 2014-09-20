@@ -38,6 +38,7 @@
 
 .alias address_size 2
 .alias branch_size 1
+.alias shift_size 1
 
 ; The program is included before the routines. The value and call stacks follow
 ; the routines.
@@ -56,6 +57,9 @@ lookup:
 .byte <logical_or, >logical_or
 .byte <logical_not, >logical_not
 .byte <minus, >minus
+.byte <bitwise_and, >bitwise_and
+.byte <left_shift, >left_shift
+.byte <right_shift, >right_shift
 .byte <branch_forward_if_false, >branch_forward_if_false
 .byte <branch_forward_if_true, >branch_forward_if_true
 .byte <branch_forward, >branch_forward
@@ -74,6 +78,7 @@ lookup:
 .byte <pop_current_frame_address, >pop_current_frame_address
 .byte <copy_value, >copy_value
 .byte <system_call, >system_call
+.byte <get_variable_address, >get_variable_address
 .byte <end, >end
 
 program:
@@ -498,6 +503,170 @@ minus:
 
     brk
 
+bitwise_and:
+
+    jsr _get_operand
+    sta temp            ; size1
+    jsr _get_operand
+    sta size            ; size2
+    tax
+
+    jsr _set_ptr2       ; ptr2 = stack_pointer - size2
+    lda temp
+    sta size
+    jsr _set_ptr1       ; ptr1 = ptr2 - size1
+
+    ldy #0
+    bitwise_and_loop:
+
+        lda (ptr1),y
+        and (ptr2),y
+        sta (ptr1),y
+
+        iny
+        dex
+        bne bitwise_and_loop
+
+    clc
+
+    lda size                ; size1
+    jsr _free_stack_space
+    jmp next_instruction
+
+left_shift:
+
+    jsr _get_operand
+    sta size
+    tax                 ; Use the X register to keep track of the byte index.
+
+    sec
+    lda stack_pointer
+    sbc #shift_size
+    sta ptr2
+    lda [stack_pointer + 1]
+    sbc #0
+    sta [ptr2 + 1]      ; ptr2 = stack_pointer - 1 (the shift value size)
+    clc
+
+    ldy #0
+    lda (ptr2),y        ; Load the shift value.
+    sta temp
+
+    jsr _set_ptr1       ; Point to the value to shift.
+    lda #0
+    sta [temp + 1]      ; Initialise the value to carry between bytes.
+
+    left_shift_loop:
+
+        lda temp        ; Load the shift value.
+        sta [temp + 2]  ; Make a working copy.
+        lda #0
+        sta [temp + 3]  ; Use an address to hold the overflow from the current
+                        ; byte.
+
+        left_shift_inner_loop:
+
+            asl [temp + 3]  ; Shift the overflow from this byte.
+
+            lda (ptr1),y    ; Shift the byte value.
+            asl
+            sta (ptr1),y
+
+            bcc left_shift_inner_loop_next
+
+            lda [temp + 3]
+            ora #$01
+            sta [temp + 3]
+
+            left_shift_inner_loop_next:
+            dec [temp + 2]
+            bne left_shift_inner_loop
+
+        lda (ptr1),y
+        ora [temp + 1]  ; Combine the current byte with overflow from the
+        sta (ptr1),y    ; previous one.
+
+        lda [temp + 3]
+        sta [temp + 1]  ; Record the new overflow.
+
+        iny
+        dex
+        bne left_shift_loop
+
+    clc
+
+    lda #shift_size
+    jsr _free_stack_space
+    jmp next_instruction
+
+right_shift:
+
+    jsr _get_operand
+    sta size
+    tax                 ; Use the X register to keep track of the byte index.
+
+    sec
+    lda stack_pointer
+    sbc #shift_size
+    sta ptr2
+    lda [stack_pointer + 1]
+    sbc #0
+    sta [ptr2 + 1]      ; ptr2 = stack_pointer - 1 (the shift value size)
+    clc
+    ldy #0
+    lda (ptr2),y        ; Load the shift value.
+    sta temp
+
+    jsr _set_ptr1       ; Point to the value to shift.
+    lda #0
+    sta [temp + 1]      ; Initialise the value to carry between bytes.
+
+    ldy size
+
+    right_shift_loop:
+
+        dey
+
+        lda temp        ; Load the shift value.
+        sta [temp + 2]  ; Make a working copy.
+        lda #0
+        sta [temp + 3]  ; Use an address to hold the overflow from the current
+                        ; byte.
+
+        right_shift_inner_loop:
+
+            lsr [temp + 3]  ; Shift the overflow from this byte.
+
+            lda (ptr1),y    ; Shift the byte value.
+            lsr
+            sta (ptr1),y
+
+            bcc right_shift_inner_loop_next
+
+            lda [temp + 3]
+            ora #$80
+            sta [temp + 3]
+
+            right_shift_inner_loop_next:
+            dec [temp + 2]
+            bne right_shift_inner_loop
+
+        lda (ptr1),y
+        ora [temp + 1]  ; Combine the current byte with overflow from the
+        sta (ptr1),y    ; previous one.
+
+        lda [temp + 3]
+        sta [temp + 1]  ; Record the new overflow.
+
+        dex
+        bne right_shift_loop
+
+    clc
+
+    lda #shift_size
+    jsr _free_stack_space
+    jmp next_instruction
+
 branch_forward_if_false:
 
     ;lda #102
@@ -879,6 +1048,23 @@ system_call:
 system_call_call:   ; temp,temp+1=address of system routine
 
     jmp (temp)      ; returns to caller
+
+get_variable_address:
+
+    jsr _get_operand
+    adc current_frame
+    sta temp
+    lda [current_frame + 1]
+    adc #0
+    sta [temp + 1]
+    clc
+
+    lda temp
+    jsr _push_byte
+    lda [temp + 1]
+    jsr _push_byte
+
+    jmp next_instruction
 
 end:
     lda #69

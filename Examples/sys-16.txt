@@ -1,0 +1,13 @@
+name = "CODE\r"
+file_name_ptr = _addr(name)
+
+file_name_low = file_name_ptr & 0xff
+file_name_high = (file_name_ptr >> 8) & 0xff
+load_address = 0x00006000
+exec_address = 0x00006000
+code_length = 0x00001000
+code_end = load_address + code_length
+
+block_ptr = _addr(file_name_low)
+
+_call(0xffdd 255 (block_ptr & 0xff) ((block_ptr >> 8) & 0xff))

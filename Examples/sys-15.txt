@@ -1,0 +1,6 @@
+name = "LOAD CODE\r"
+file_name_ptr = _addr(name)
+low = (file_name_ptr & 0xff)
+high = (file_name_ptr >> 8) & 0xff
+
+_call(0xfff7 0 low high)

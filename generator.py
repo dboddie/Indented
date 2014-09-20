@@ -170,6 +170,21 @@ def generate_minus(size):
     global code
     code += [minus, size]
 
+def generate_bitwise_and(size1, size2):
+
+    global code
+    code += [bitwise_and, size1, size2]
+
+def generate_left_shift(size):
+
+    global code
+    code += [left_shift, size]
+
+def generate_right_shift(size):
+
+    global code
+    code += [right_shift, size]
+
 def generate_if():
 
     global code
@@ -289,6 +304,11 @@ def generate_system_call(total_args_size):
     # The arguments themselves should have already been pushed onto the stack.
     # The total size allows us to generate code to extract them.
     code += [sys_call, total_args_size]
+
+def generate_get_variable_address(offset):
+
+    global code
+    code += [get_variable_address, offset]
 
 def generate_end():
 

@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import opcodes
-from opcodes import address_size, branch_size, memory_size
+from opcodes import address_size, branch_size, memory_size, shift_size
 
 memory = [0] * memory_size
 current_frame = 0
@@ -259,6 +259,58 @@ def minus():
         push_byte(v & 0xff)
         i += 1
 
+def bitwise_and():
+
+    size1 = get_operand()
+    size2 = get_operand()
+    ptr2 = stack_pointer - size2
+    ptr1 = ptr2 - size1
+    
+    i = 0
+    while i < size2:
+        memory[ptr1 + i] = memory[ptr1 + i] & memory[ptr2 + i]
+        i += 1
+    
+    _free_stack_space(size1)
+
+def left_shift():
+
+    size = get_operand()
+    ptr2 = stack_pointer - shift_size
+    ptr1 = ptr2 - size
+    
+    # Assume just a single byte value.
+    shift = memory[ptr2]
+    
+    i = 0
+    a = 0
+    while i < size:
+        v = memory[ptr1 + i] << shift
+        memory[ptr1 + i] = (v & 0xff) | a
+        a = v >> 8
+        i += 1
+    
+    _free_stack_space(shift_size)
+
+def right_shift():
+
+    size = get_operand()
+    ptr2 = stack_pointer - shift_size
+    ptr1 = ptr2 - size
+    
+    # Assume just a single byte value.
+    shift = memory[ptr2]
+    
+    i = size - 1
+    a = 0
+    while i >= 0:
+        v = memory[ptr1 + i]
+        memory[ptr1 + i] = ((v >> shift) & 0xff) | a
+        a = (v << (8 - shift)) & 0xff
+        i -= 1
+    
+    _free_stack_space(shift_size)
+
 def branch_forward_if_false():
 
     global program_counter
@@ -457,6 +509,17 @@ def sys_call():
         v = v >> 8
         i += 1
 
+def get_variable_address():
+
+    offset = get_operand()
+    address = current_frame + offset
+    
+    i = 0
+    while i < address_size:
+        push_byte(address & 0xff)
+        address = address >> 8
+        i += 1
+
 def end():
 
     raise StopIteration
@@ -475,6 +538,9 @@ lookup = {
     opcodes.logical_or: logical_or,
     opcodes.logical_not: logical_not,
     opcodes.minus: minus,
+    opcodes.bitwise_and: bitwise_and,
+    opcodes.left_shift: left_shift,
+    opcodes.right_shift: right_shift,
     opcodes.branch_forward_if_false: branch_forward_if_false,
     opcodes.branch_forward_if_true: branch_forward_if_true,
     opcodes.branch_forward: branch_forward,
@@ -493,6 +559,7 @@ lookup = {
     opcodes.pop_current_frame_address: pop_current_frame_address,
     opcodes.copy_value: copy_value,
     opcodes.sys_call: sys_call,
+    opcodes.get_variable_address: get_variable_address,
     opcodes.end: end
     }
 

@@ -30,6 +30,9 @@ logical_and, \
 logical_or, \
 logical_not, \
 minus, \
+bitwise_and, \
+left_shift, \
+right_shift, \
 branch_forward_if_false, \
 branch_forward_if_true, \
 branch_forward, \
@@ -48,10 +51,12 @@ free_stack_space, \
 pop_current_frame_address, \
 copy_value, \
 sys_call, \
-end = range(0, 64, 2)
+get_variable_address, \
+end = range(0, 72, 2)
 
 address_size = 2
 branch_size = 1
 memory_size = 32768
 register_size = 1
 system_call_return_size = 4
+shift_size = 1

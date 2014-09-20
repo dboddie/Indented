@@ -365,6 +365,46 @@ def parse_body(stream):
     debug_print("body")
     return True
 
+def parse_builtin_call(stream):
+
+    '<built-in call> = "_addr" "(" [<argument>+] ")"'
+    
+    global current_size
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != "_addr":
+        put_tokens(top)
+        return False
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_begin_token:
+        raise SyntaxError, "Arguments must follow '(' at line %i.\n" % tokeniser.line
+    
+    var_token = get_token(stream)
+    if not is_variable(var_token):
+        raise SyntaxError, "Argument must be a variable at line %i.\n" % tokeniser.line
+    
+    index = find_local_variable(var_token)
+    if index != -1:
+        name, size = local_variables[index]
+        offset = local_variable_offset(index)
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_end_token:
+        raise SyntaxError, "Arguments must be terminated with ')' at line %i.\n" % tokeniser.line
+    
+    debug_print("addr call")
+    
+    generator.generate_get_variable_address(offset)
+    
+    # Set the size of the return value to ensure that it is assigned or
+    # discarded as necessary.
+    current_size = opcodes.address_size
+    
+    return True
+
 def parse_control(stream):
 
     top = len(used)
@@ -594,7 +634,7 @@ def parse_expression(stream):
 
 def parse_function_call(stream):
 
-    '<function call> = <name> [<argument>+]'
+    '<function call> = <name> "(" [<argument>+] ")"'
     
     global current_size
     
@@ -739,14 +779,17 @@ def parse_operand_value(stream):
         return True
     elif parse_system_call(stream):
         return True
+    elif parse_builtin_call(stream):
+        return True
     else:
         return False
 
-operators = ("==", "!=", "<", ">", "+", "-", "*", "/", "and", "or")
+operators = ("==", "!=", "<", ">", "+", "-", "*", "/", "and", "or", "&", "<<", ">>")
+asymmetric_operators = ("<<", ">>", "&")
 
 def parse_operation(stream):
 
-    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" <operand>'
+    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" | "&" | "<<" | ">>" <operand>'
     
     global current_size
     
@@ -769,7 +812,7 @@ def parse_operation(stream):
     if current_size == 0:
         raise SyntaxError, "Operand 2 has zero size at line %i." % tokeniser.line
     
-    if current_size != size1:
+    if token not in asymmetric_operators and current_size != size1:
         raise SyntaxError, "Sizes of operands do not match at line %i." % tokeniser.line
     
     if token == "==":
@@ -825,6 +868,23 @@ def parse_operation(stream):
         debug_print("or", token)
         generator.generate_logical_or()
         current_size = 1
+    
+    elif token == "&":
+    
+        debug_print("&", token)
+        generator.generate_bitwise_and(size1, current_size)
+    
+    elif token == "<<":
+    
+        debug_print("<<", token)
+        current_size = size1
+        generator.generate_left_shift(current_size)
+    
+    elif token == ">>":
+    
+        debug_print(">>", token)
+        current_size = size1
+        generator.generate_right_shift(current_size)
     
     return True
 
@@ -967,7 +1027,7 @@ def parse_statement(stream):
 
 def parse_system_call(stream):
 
-    '<system call> = _call [<argument>+]'
+    '<system call> = _call "(" <address> [<A> [<X> [<Y>]]] ")"'
     
     global current_size
     
@@ -980,7 +1040,7 @@ def parse_system_call(stream):
     
     token = get_token(stream)
     if token != tokeniser.arguments_begin_token:
-        raise SyntaxError, "Function arguments must follow '(' at line %i.\n" % tokeniser.line
+        raise SyntaxError, "Arguments must follow '(' at line %i.\n" % tokeniser.line
     
     # Parse the arguments corresponding to the system call parameters.
     # These take the form <address> <A> <X> <Y>.
@@ -1015,7 +1075,7 @@ def parse_system_call(stream):
     
     token = get_token(stream)
     if token != tokeniser.arguments_end_token:
-        raise SyntaxError, "System call arguments must be terminated with ')' at line %i.\n" % tokeniser.line
+        raise SyntaxError, "Arguments must be terminated with ')' at line %i.\n" % tokeniser.line
     
     debug_print("system call")
     
