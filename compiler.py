@@ -194,15 +194,20 @@ def decode_string(token):
                 new += "\n"
             elif ch == "t":
                 new += "\t"
-            elif ch in string.hexdigits and j < len(token) - 2:
-                total = string.hexdigits.index(ch.lower()) << 8
-                j += 1
-                ch = token[j]
-                if ch in string.hexdigits:
-                    total += string.hexdigits.index(ch.lower())
-                    new += chr(total)
-                else:
+            elif ch == "x":
+                k = 2
+                total = 0
+                while k > 0 and j < len(token) - 1:
+                    j += 1
+                    k -= 1
+                    ch = token[j]
+                    if ch in string.hexdigits:
+                        total += (string.hexdigits.index(ch.lower()) << (k * 4))
+                    else:
+                        raise SyntaxError, "Invalid escape at line %i." % tokeniser.line
+                if k != 0:
                     raise SyntaxError, "Invalid escape at line %i." % tokeniser.line
+                new += chr(total)
             else:
                 raise SyntaxError, "Invalid escape at line %i." % tokeniser.line
             i = j + 1
@@ -309,6 +314,11 @@ def get_token(stream):
         token = tokens.pop(0)
     else:
         token = read_token(stream)
+        if token.startswith(tokeniser.comment_token):
+            while True:
+                token = read_token(stream)
+                if token == tokeniser.newline_token:
+                    break
     
     # Transfer the token to the list of used tokens but also return it.
     used.append(token)

@@ -38,6 +38,7 @@ arguments_end_token = ")"
 system_call_token = "_call"
 logical_not_token = "not"
 minus_token = "-"
+comment_token = "#"
 
 def reset():
 
@@ -137,7 +138,7 @@ def read_token(stream):
             # Any non-whitespace characters are treated separately.
             
             # Test for comments and the beginnings and ends of strings.
-            if ch == "#":
+            if ch == comment_token:
                 in_comment = True
             elif ch == '"':
                 in_string = not in_string

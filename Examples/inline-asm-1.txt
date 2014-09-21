@@ -1,0 +1,9 @@
+# Define a string containing 6502 opcodes:
+# lda #255
+# sta $7000
+# rts
+asm = "\xa9\xff\x8d\x00\x70\x60"
+
+# Get the address of the string and call it.
+routine = _addr(asm)
+_call(routine)
