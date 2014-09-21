@@ -428,13 +428,37 @@ def parse_control(stream):
                 raise SyntaxError, "Invalid condition type at line %i." % tokeniser.line
             
             # Insert a placeholder branch instruction.
-            address = generator.generate_if()
+            if_address = generator.generate_if()
             
-            if parse_body(stream):
-                debug_print("if")
-                # Fill in the branch offset.
-                generator.generate_target(address)
-                return True
+            if not parse_body(stream):
+                raise SyntaxError, "Invalid if body at line %i." % tokeniser.line
+            
+            debug_print("if")
+            
+            top = len(used)
+            token = get_token(stream)
+            if token == "else":
+            
+                # Add a placeholder branch to the if code.
+                if_exit_address = generator.generate_else()
+                
+                # Fill in the branch offset for the if condition.
+                generator.generate_target(if_address)
+                
+                if not parse_body(stream):
+                    raise SyntaxError, "Invalid else body at line %i." % tokeniser.line
+                
+                # Fill in the branch offset for the if body.
+                generator.generate_target(if_exit_address)
+            
+            else:
+                # Put the token back in the queue.
+                put_tokens(top)
+                
+                # Fill in the branch offset for the if condition.
+                generator.generate_target(if_address)
+            
+            return True
         
         raise SyntaxError, "Invalid if structure at line %i." % tokeniser.line
     

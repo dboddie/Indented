@@ -52,9 +52,9 @@ while y < 32
     
         _call(0x4000 sprite x y)
         if (y > 0) and (y < 31)
-            x = x + 36
-        
-        x = x + 2
+            x = x + 38
+        else
+            x = x + 2
     
     y = y + 1
 
@@ -71,13 +71,16 @@ while True
         vsync()
         _call(0x4000 0 x y)
         
-        if key == 1 and x > 2
+        if (key == 1) and (x > 2)
             x = x - 1
-        if key == 2 and x < 36
-            x = x + 1
-        if key == 3 and y > 1
-            y = y - 1
-        if key == 4 and y < 30
-            y = y + 1
+        else
+            if (key == 2) and (x < 36)
+                x = x + 1
+            else
+                if (key == 3) and (y > 1)
+                    y = y - 1
+                else
+                    if (key == 4) and (y < 30)
+                        y = y + 1
         
         _call(0x4000 2 x y)

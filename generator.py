@@ -192,6 +192,13 @@ def generate_if():
     code += [branch_forward_if_false, None]
     return offset
 
+def generate_else():
+
+    global code
+    offset = len(code)
+    code += [branch_forward, None]
+    return offset
+
 def generate_while():
 
     global code
