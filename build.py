@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os, stat, struct, sys
-import UEFfile
+import cmdsyntax, UEFfile
 import compiler, opcodes
 
 version = "0.1"
@@ -42,13 +42,19 @@ def address_length_end(address, data):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 3:
+    usage = "<program file> [<manifest file>] -o <new UEF file>"
+    syntax = cmdsyntax.Syntax(usage)
+    matches = syntax.get_args(sys.argv[1:])
     
-        sys.stderr.write("Usage: %s <Ophis file> <new UEF file>\n" % sys.argv[0])
+    if len(matches) != 1:
+    
+        sys.stderr.write("Usage: %s %s\n" % (sys.argv[0], usage))
         sys.exit(1)
     
-    input_file = sys.argv[1]
-    out_uef_file = sys.argv[2]
+    match = matches[0]
+    input_file = match["program file"]
+    manifest_file = match.get("manifest file")
+    out_uef_file = match["new UEF file"]
     
     stream = open(input_file)
     
@@ -80,6 +86,30 @@ if __name__ == "__main__":
     
     # Set the execution address to be the address following the opcodes.
     files = [("CODE", load_address, program_address + program_length, code)]
+    
+    if manifest_file:
+    
+        # Read the manifest file and include the files there in the file list.
+        try:
+            lines = open(manifest_file).readlines()
+        except IOError:
+            sys.stderr.write("Failed to read manifest file: %s\n" % manifest_file)
+            sys.exit(1)
+        
+        manifest_dir = os.path.split(manifest_file)[0]
+        
+        for line in lines:
+            name, load, exec_ = line.strip().split()
+            path = os.path.join(manifest_dir, name)
+            try:
+                data = open(path).read()
+            except IOError:
+                sys.stderr.write("Failed to open file found in manifest: %s\n" % name)
+                sys.exit(1)
+            
+            load = int(load[2:], 16)
+            exec_ = int(exec_[2:], 16)
+            files.append((name, load, exec_, data))
     
     u = UEFfile.UEFfile(creator = 'build.py '+version)
     u.minor = 6

@@ -1,0 +1,30 @@
+def mode number (byte)
+    _call(0xffee 22)
+    _call(0xffee number)
+
+# Define a string containing 6502 opcodes:
+# pha
+# txa
+# sta $8e
+# tya
+# sta $8f
+# pla
+# ldy #0
+# sta ($8e),y
+# rts
+asm = "\x48\x8a\x85\x8e\x98\x85\x8f\x68\xa0\x00\x91\x8e\x60"
+
+mode(5)
+
+# Get the address of the string.
+routine = _addr(asm)
+
+a = 255
+addr = 0x5800
+
+while addr < 0x8000
+
+    low = addr & 0xff
+    high = (addr >> 8) & 0xff
+    _call(routine a low high)
+    addr = addr + 0x0001
