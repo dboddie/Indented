@@ -1,0 +1,5 @@
+s = "String"
+i = 0
+while i < 6
+    a = s[i]
+    i = i + 1

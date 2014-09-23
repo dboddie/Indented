@@ -79,6 +79,7 @@ lookup:
 .byte <copy_value, >copy_value
 .byte <system_call, >system_call
 .byte <get_variable_address, >get_variable_address
+.byte <load_array_value, >load_array_value
 .byte <end, >end
 
 program:
@@ -1063,6 +1064,100 @@ get_variable_address:
     jsr _push_byte
     lda [temp + 1]
     jsr _push_byte
+
+    jmp next_instruction
+
+load_array_value:
+
+    jsr _get_operand
+    sta offset
+    jsr _get_operand
+    sta temp                ; element size
+    jsr _get_operand
+    sta size                ; index size
+
+    jsr _set_ptr2
+    ldy #0
+    lda (ptr2),y
+    sta [temp + 2]
+
+    lda size
+    cmp #1
+    beq load_array_value_1
+    cmp #2
+    beq load_array_value_2
+
+    brk                     ; Any other index sizes are not handled.
+
+    load_array_value_1:
+    clc
+
+    lda #0
+    sta [temp + 3]          ; Load index.
+
+    bcc load_array_value_calculate_index
+
+    load_array_value_2:
+    clc
+
+    iny
+    lda (ptr2),y
+    sta [temp + 3]          ; Load index.
+
+    load_array_value_calculate_index:
+
+    lda temp            ; Load element size (1, 2, 4).
+    lsr                 ; Calculate the number of shifts required (0, 1, 2).
+    tax
+
+    cpx #0
+    beq load_array_value_calculate_index_endloop
+
+    load_array_value_calculate_index_loop:
+
+        asl [temp + 2]
+        bcc load_array_value_calculate_index_loop_continue
+
+        asl [temp + 3]
+
+        load_array_value_calculate_index_loop_continue:
+        dex
+        bne load_array_value_calculate_index_loop
+
+    load_array_value_calculate_index_endloop:
+    clc
+
+    ; The value in temp+2:temp+3 is the index byte offset.
+
+    lda [temp + 2]          ; Add the byte offset to the offset into the
+    adc offset              ; current frame.
+    sta [temp + 2]
+    lda [temp + 3]
+    adc #0
+    sta [temp + 3]
+    clc
+
+    lda [temp + 2]
+    adc current_frame
+    sta [temp + 2]
+    lda [temp + 3]
+    adc [current_frame + 1]
+    sta [temp + 3]
+    clc
+
+    ldx size        ; element size
+    lda #0
+    sta temp        ; Reuse temp.
+
+    load_array_value_load_loop:
+
+        ldy temp
+        lda ([temp + 2]),y
+        jsr _push_byte
+
+        inc temp
+        dex
+        bne load_array_value_load_loop
 
     jmp next_instruction
 

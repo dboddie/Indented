@@ -52,7 +52,8 @@ pop_current_frame_address, \
 copy_value, \
 sys_call, \
 get_variable_address, \
-end = range(0, 72, 2)
+load_array_value, \
+end = range(0, 74, 2)
 
 address_size = 2
 branch_size = 1

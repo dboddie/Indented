@@ -39,6 +39,8 @@ system_call_token = "_call"
 logical_not_token = "not"
 minus_token = "-"
 comment_token = "#"
+index_begin_token = "["
+index_end_token = "]"
 
 def reset():
 
@@ -73,8 +75,9 @@ def read_token(stream):
     else:
         token = ""
     
-    # If the token is a newline then emit this immediately.
-    if token in (newline_token, arguments_begin_token, arguments_end_token):
+    # If the token is a newline or parenthesis then emit this immediately.
+    if token in (newline_token, arguments_begin_token, arguments_end_token,
+                 index_begin_token, index_end_token):
         return token
     
     while True:
@@ -126,7 +129,7 @@ def read_token(stream):
             else:
                 return newline_token
         
-        elif ch == "(" or ch == ")":
+        elif ch == "(" or ch == ")" or ch == "[" or ch == "]":
             # Opening and closing parentheses are emitted as separate tokens.
             if token:
                 pending_token = ch

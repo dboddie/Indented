@@ -45,6 +45,8 @@ Grammar
 <if> =
 "if" <expression>
 <body>
+["else"
+<body>]
 
 <while> =
 "while" <expression>

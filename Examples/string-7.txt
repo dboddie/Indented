@@ -1,0 +1,6 @@
+s = "String"
+i = 0
+while i < 6
+    a = s[i]
+    _call(0xffee a) # VDU
+    i = i + 1

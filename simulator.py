@@ -520,6 +520,24 @@ def get_variable_address():
         address = address >> 8
         i += 1
 
+def load_array_value():
+
+    offset = get_operand()
+    size = get_operand()
+    index_size = get_operand()
+    
+    index = 0
+    i = 0
+    while i < index_size:
+        index = (index << 8) | pop_byte()
+        i += 1
+    
+    offset = offset + (index * size)
+    i = 0
+    while i < size:
+        push_byte(memory[current_frame + offset + i])
+        i += 1
+
 def end():
 
     raise StopIteration
@@ -560,6 +578,7 @@ lookup = {
     opcodes.copy_value: copy_value,
     opcodes.sys_call: sys_call,
     opcodes.get_variable_address: get_variable_address,
+    opcodes.load_array_value: load_array_value,
     opcodes.end: end
     }
 
@@ -579,24 +598,24 @@ def load(code, address):
     call_stack_base = call_stack_pointer = end
     stack_base = current_frame = stack_pointer = end + 16 * address_size
 
-def run():
+def run(step = True, verbose = True):
 
     global program_counter, stack_pointer
-    
-    step = True
     
     while True:
     
         instruction = lookup[get_instruction()]
-        print program_counter, instruction
+        if verbose:
+            print program_counter, instruction
         if instruction == end:
             break
         instruction()
-        print "Call: ", " ".join(map(lambda x: "%02x" % x, memory[call_stack_base:call_stack_pointer]))
-        print "Value:", " ".join(map(lambda x: "%02x" % x, memory[stack_base:stack_pointer]))
+        if verbose:
+            print "Call: ", " ".join(map(lambda x: "%02x" % x, memory[call_stack_base:call_stack_pointer]))
+            print "Value:", " ".join(map(lambda x: "%02x" % x, memory[stack_base:stack_pointer]))
         if step:
             q = raw_input(">")
             if q == "c":
                 step = False
     
-    print memory[stack_base:stack_pointer]
+    return memory[stack_base:stack_pointer]

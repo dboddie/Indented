@@ -33,6 +33,7 @@ used = []
 global_variables = []
 local_variables = []
 current_size = 0
+current_element_size = 0
 
 # Function definitions
 
@@ -54,7 +55,8 @@ system_call_parameters = [("address", opcodes.address_size),
 
 # Constant and type handling
 
-types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4, "string": None}
+types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4}
+array_types = {"int8[]": 1, "int16[]": 2, "int32[]": 4, "string": 1}
 
 def is_constant(token):
 
@@ -71,18 +73,19 @@ def is_constant(token):
 
 def get_size(token):
 
-    global current_size
+    global current_size, current_element_size
     
     if is_boolean(token):
-        current_size = 1
+        current_size = current_element_size = 1
         return current_size
     
     if is_number(token):
-        current_size = number_size(token)
+        current_size = current_element_size = number_size(token)
         return current_size
     
     if is_string(token):
         current_size = len(decode_string(token))
+        current_element_size = array_types["string"]
         return current_size
     
     raise SyntaxError, "Unknown size for constant '%s' at line %i." % (token, tokeniser.line)
@@ -237,7 +240,7 @@ def is_variable(token):
 def find_local_variable(token):
 
     index = 0
-    for name, size in local_variables:
+    for name, size, element_size in local_variables:
         if name == token:
             debug_print("local variable", token)
             return index
@@ -250,7 +253,7 @@ def local_variable_offset(index):
     offset = 0
     while index > 0:
         index -= 1
-        name, size = local_variables[index]
+        name, size, element_size = local_variables[index]
         offset += size
     
     return offset
@@ -258,7 +261,7 @@ def local_variable_offset(index):
 def find_global_variable(token):
 
     index = 0
-    for name, size in global_variables:
+    for name, size, element_size in global_variables:
         if name == token:
             debug_print("global variable", token)
             return index
@@ -271,7 +274,7 @@ def global_variable_offset(index):
     offset = 0
     while index > 0:
         index -= 1
-        name, size = global_variables[index]
+        name, size, element_size = global_variables[index]
         offset += size
     
     return offset
@@ -279,7 +282,7 @@ def global_variable_offset(index):
 def total_variable_size(variables):
 
     total_var_size = 0
-    for name, size in variables:
+    for name, size, element_size in variables:
         total_var_size += size
     
     return total_var_size
@@ -345,6 +348,25 @@ def print_tokens():
 
 # Parsing functions
 
+def parse_array_index(stream):
+
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != tokeniser.index_begin_token:
+        put_tokens(top)
+        return False
+    
+    if not parse_operand_value(stream):
+        raise SyntaxError, "Invalid index value at line %i." % tokeniser.line
+    
+    token = get_token(stream)
+    
+    if token != tokeniser.index_end_token:
+        raise SyntaxError, "Expected ']' at line %i." % tokeniser.line
+    
+    return True
+
 def parse_body(stream):
 
     if not parse_indent(stream):
@@ -379,7 +401,7 @@ def parse_builtin_call(stream):
 
     '<built-in call> = "_addr" "(" [<argument>+] ")"'
     
-    global current_size
+    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -398,7 +420,7 @@ def parse_builtin_call(stream):
     
     index = find_local_variable(var_token)
     if index != -1:
-        name, size = local_variables[index]
+        name, size, element_size = local_variables[index]
         offset = local_variable_offset(index)
     
     token = get_token(stream)
@@ -411,7 +433,7 @@ def parse_builtin_call(stream):
     
     # Set the size of the return value to ensure that it is assigned or
     # discarded as necessary.
-    current_size = opcodes.address_size
+    current_size = current_element_size = opcodes.address_size
     
     return True
 
@@ -556,8 +578,10 @@ def parse_definition(stream):
                 raise SyntaxError, "Expected ')' after type '%s' at line %i." % (
                     type_token, tokeniser.line)
         
-            local_variables.append((name, types[type_token]))
-            parameters.append((name, types[type_token]))
+            local_variables.append((name, types[type_token],
+                                    array_types.get(type_token, types[type_token])))
+            parameters.append((name, types[type_token],
+                               array_types.get(type_token, types[type_token])))
         
         # Tentatively add the function to the list of definitions.
         functions.append([function_name, parameters, local_variables[:], None, 0])
@@ -670,7 +694,7 @@ def parse_function_call(stream):
 
     '<function call> = <name> "(" [<argument>+] ")"'
     
-    global current_size
+    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -702,7 +726,7 @@ def parse_function_call(stream):
     
     total_param_size = total_variable_size(parameters)
     
-    for name, size in parameters:
+    for name, size, element_size in parameters:
     
         if not parse_expression(stream):
             raise SyntaxError, "Invalid argument to function '%s' at line %i.\n" % (token, tokeniser.line)
@@ -733,7 +757,7 @@ def parse_function_call(stream):
     
     # Record the size of the return value to ensure that it is assigned or
     # discarded as necessary.
-    current_size = rsize
+    current_size = current_element_size = rsize
     
     return True
 
@@ -825,7 +849,7 @@ def parse_operation(stream):
 
     '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" | "&" | "<<" | ">>" <operand>'
     
-    global current_size
+    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -852,22 +876,22 @@ def parse_operation(stream):
     if token == "==":
         debug_print("equals", token)
         generator.generate_equals(current_size)
-        current_size = 1
+        current_size = current_element_size = 1
     
     elif token == "!=":
         debug_print("not equals", token)
         generator.generate_not_equals(current_size)
-        current_size = 1
+        current_size = current_element_size = 1
     
     elif token == "<":
         debug_print("less than", token)
         generator.generate_less_than(current_size)
-        current_size = 1
+        current_size = current_element_size = 1
     
     elif token == ">":
         debug_print("greater than", token)
         generator.generate_greater_than(current_size)
-        current_size = 1
+        current_size = current_element_size = 1
     
     elif token == "+":
         debug_print("add", token)
@@ -892,7 +916,7 @@ def parse_operation(stream):
         
         debug_print("and", token)
         generator.generate_logical_and()
-        current_size = 1
+        current_size = current_element_size = 1
     
     elif token == "or":
     
@@ -901,7 +925,7 @@ def parse_operation(stream):
         
         debug_print("or", token)
         generator.generate_logical_or()
-        current_size = 1
+        current_size = current_element_size = 1
     
     # The bitwise AND operation truncates the result to the size of the second
     # operand.
@@ -921,7 +945,7 @@ def parse_operation(stream):
             raise SyntaxError, "Invalid size for shift at line %i." % tokeniser.line
         
         debug_print("<<", token)
-        current_size = size1
+        current_size = current_element_size = size1
         generator.generate_left_shift(current_size)
     
     elif token == ">>":
@@ -930,7 +954,7 @@ def parse_operation(stream):
             raise SyntaxError, "Invalid size for shift at line %i." % tokeniser.line
         
         debug_print(">>", token)
-        current_size = size1
+        current_size = current_element_size = size1
         generator.generate_right_shift(current_size)
     
     return True
@@ -1044,14 +1068,14 @@ def parse_statement(stream):
     
         index = find_local_variable(var_token)
         if index != -1:
-            name, size = local_variables[index]
+            name, size, element_size = local_variables[index]
             offset = local_variable_offset(index)
             generator.generate_assign_local(offset, size)
             return True
         
         index = find_global_variable(var_token)
         if index != -1:
-            name, size = global_variables[index]
+            name, size, element_size = global_variables[index]
             offset = global_variable_offset(index)
             generator.generate_assign_global(offset, size)
             return True
@@ -1061,7 +1085,7 @@ def parse_statement(stream):
         
         debug_print("define", var_token)
         ### We need a way to determine if the variable is local or global.
-        local_variables.append((var_token, current_size))
+        local_variables.append((var_token, current_size, current_element_size))
         index = find_local_variable(var_token)
         offset = local_variable_offset(index)
         generator.generate_assign_local(offset, current_size)
@@ -1076,7 +1100,7 @@ def parse_system_call(stream):
 
     '<system call> = _call "(" <address> [<A> [<X> [<Y>]]] ")"'
     
-    global current_size
+    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -1133,7 +1157,7 @@ def parse_system_call(stream):
     
     # Set the size of the return value to ensure that it is assigned or
     # discarded as necessary.
-    current_size = opcodes.system_call_return_size
+    current_size = current_element_size = opcodes.system_call_return_size
     
     return True
 
@@ -1141,7 +1165,7 @@ def parse_value(stream):
 
     "<value> = <number> | <string>"
     
-    global current_size
+    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -1167,12 +1191,11 @@ def parse_value(stream):
         put_tokens(top)
         return False
     
-    current_size = size
     return True
 
 def parse_variable(stream):
 
-    global current_size
+    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -1183,18 +1206,30 @@ def parse_variable(stream):
     
     index = find_local_variable(token)
     if index != -1:
-        name, size = local_variables[index]
+        name, size, element_size = local_variables[index]
         offset = local_variable_offset(index)
-        generator.generate_load_local(offset, size)
-        current_size = size
+        
+        if size != element_size and parse_array_index(stream):
+            index_size = current_size
+            generator.generate_load_array_value(offset, element_size, index_size)
+            current_size = current_element_size = element_size
+        else:
+            generator.generate_load_local(offset, size)
+            current_size = current_element_size = size
         return True
     
     index = find_global_variable(token)
     if index != -1:
-        name, size = global_variables[index]
+        name, size, element_size = global_variables[index]
         offset = global_variable_offset(index)
-        generator.generate_load_global(offset, size)
-        current_size = size
+        
+        if size != element_size and parse_array_index(stream):
+            index_size = current_size
+            generator.generate_load_array_value(offset, element_size, index_size)
+            current_size = current_element_size = element_size
+        else:
+            generator.generate_load_global(offset, size)
+            current_size = current_element_size = size
         return True
     
     put_tokens(top)
@@ -1262,7 +1297,7 @@ if __name__ == "__main__":
         print "Loading"
         simulator.load(generator.code, load_address)
         print "Running"
-        simulator.run()
+        print simulator.run()
     
     if save:
         save_opcodes_oph("6502/program.oph")
