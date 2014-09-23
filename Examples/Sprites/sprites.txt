@@ -43,18 +43,23 @@ cursor_off()
 
 # Fill the playing area.
 
-sprite = 1
+hwall = "11111111111111111111"
+vwall = "10000000000000000001"
+
 y = 0
 while y < 32
 
     x = 0
     while x < 40
     
-        _call(0x4000 sprite x y)
         if (y > 0) and (y < 31)
-            x = x + 38
+            sprite = vwall[x >> 1]
         else
-            x = x + 2
+            sprite = hwall[x >> 1]
+        
+        _call(0x4000 sprite x y)
+        
+        x = x + 2
     
     y = y + 1
 

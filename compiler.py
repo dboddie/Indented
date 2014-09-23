@@ -357,7 +357,7 @@ def parse_array_index(stream):
         put_tokens(top)
         return False
     
-    if not parse_operand_value(stream):
+    if not parse_expression(stream):
         raise SyntaxError, "Invalid index value at line %i." % tokeniser.line
     
     token = get_token(stream)
