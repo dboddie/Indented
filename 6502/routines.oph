@@ -80,6 +80,7 @@ lookup:
 .byte <system_call, >system_call
 .byte <get_variable_address, >get_variable_address
 .byte <load_array_value, >load_array_value
+.byte <store_array_value, >store_array_value
 .byte <end, >end
 
 program:
@@ -1072,59 +1073,127 @@ load_array_value:
     jsr _get_operand
     sta offset
     jsr _get_operand
-    sta temp                ; element size
-    jsr _get_operand
     sta size                ; index size
 
-    jsr _set_ptr2
-    ldy #0
+    jsr _set_ptr2           ; Obtain the address of the index value given that
+    ldy #0                  ; it is at the top of the stack.
     lda (ptr2),y
     sta [temp + 2]
 
     lda size
+    sta temp
+
+    jsr _free_stack_space   ; Discard the index value from the stack.
+
+    jsr _get_operand
+    sta size                ; element size
+
+    jsr _calculate_array_element_address
+
+    ldx size        ; element size
+    lda #0
+    sta [temp + 1]
+
+    load_array_value_loop:
+
+        ldy [temp + 1]
+        lda ([temp + 2]),y
+        jsr _push_byte
+
+        inc [temp + 1]
+        dex
+        bne load_array_value_loop
+
+    jmp next_instruction
+
+store_array_value:
+
+    jsr _get_operand
+    sta offset
+    jsr _get_operand
+    sta temp                ; index size
+    jsr _get_operand
+    pha                     ; element size
+
+    adc temp                ; index size + element size
+    sta size
+    sta [temp + 1]          ; Keep the total for later.
+
+    jsr _set_ptr2           ; Obtain the address of the index value given that
+    ldy #0                  ; it is below the assigned value at the top of the
+    lda (ptr2),y            ; stack.
+    sta [temp + 2]
+
+    pla                     ; Restore the element size.
+    sta size
+
+    jsr _calculate_array_element_address
+
+    jsr _set_ptr2           ; Obtain the address of the value on the stack.
+
+    ldx size        ; element size
+    ldy #0
+
+    store_array_value_loop:
+
+        lda (ptr2),y
+        sta ([temp + 2]),y
+
+        iny
+        dex
+        bne store_array_value_loop
+
+    lda [temp + 1]          ; Free both the index and value from the stack.
+    jsr _free_stack_space
+    jmp next_instruction
+
+_calculate_array_element_address:   ; Returns temp+2:temp+3=address of element
+                                    ;         size=element size
+                                    ;         temp=index size
+    lda temp
     cmp #1
-    beq load_array_value_1
+    beq load_array_index_value_1
     cmp #2
-    beq load_array_value_2
+    beq load_array_index_value_2
 
     brk                     ; Any other index sizes are not handled.
 
-    load_array_value_1:
+    load_array_index_value_1:
     clc
 
     lda #0
     sta [temp + 3]          ; Load index.
 
-    bcc load_array_value_calculate_index
+    bcc calculate_index
 
-    load_array_value_2:
+    load_array_index_value_2:
     clc
 
     iny
     lda (ptr2),y
     sta [temp + 3]          ; Load index.
 
-    load_array_value_calculate_index:
+    calculate_index:
 
-    lda temp            ; Load element size (1, 2, 4).
+    lda size            ; Load element size (1, 2, 4).
     lsr                 ; Calculate the number of shifts required (0, 1, 2).
     tax
 
     cpx #0
-    beq load_array_value_calculate_index_endloop
+    beq calculate_index_endloop
 
-    load_array_value_calculate_index_loop:
+    calculate_index_loop:
 
         asl [temp + 2]
-        bcc load_array_value_calculate_index_loop_continue
+        bcc calculate_index_loop_continue
 
         asl [temp + 3]
 
-        load_array_value_calculate_index_loop_continue:
+        calculate_index_loop_continue:
         dex
-        bne load_array_value_calculate_index_loop
+        bne calculate_index_loop
 
-    load_array_value_calculate_index_endloop:
+    calculate_index_endloop:
     clc
 
     ; The value in temp+2:temp+3 is the index byte offset.
@@ -1137,7 +1206,7 @@ load_array_value:
     sta [temp + 3]
     clc
 
-    lda [temp + 2]
+    lda [temp + 2]          ; Calculate the address of the array element.
     adc current_frame
     sta [temp + 2]
     lda [temp + 3]
@@ -1145,21 +1214,7 @@ load_array_value:
     sta [temp + 3]
     clc
 
-    ldx size        ; element size
-    lda #0
-    sta temp        ; Reuse temp.
-
-    load_array_value_load_loop:
-
-        ldy temp
-        lda ([temp + 2]),y
-        jsr _push_byte
-
-        inc temp
-        dex
-        bne load_array_value_load_loop
-
-    jmp next_instruction
+    rts
 
 end:
     lda #69

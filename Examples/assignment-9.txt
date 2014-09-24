@@ -1,0 +1,6 @@
+s = "      "
+i = 0
+while i < 6
+    s[i] = 65 + i
+    _call(0xffee s[i]) # VDU
+    i = i + 1

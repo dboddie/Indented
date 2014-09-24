@@ -365,6 +365,7 @@ def parse_array_index(stream):
     if token != tokeniser.index_end_token:
         raise SyntaxError, "Expected ']' at line %i." % tokeniser.line
     
+    debug_print("array index")
     return True
 
 def parse_body(stream):
@@ -1034,21 +1035,63 @@ def parse_statement(stream):
 
     "<statement> = <expression> <separator>"
     
+    global current_size, current_element_size
+    
     top = len(used)
     address = len(generator.code)
     
-    assignment = False
+    assignment = None
     
     # The statement may be an assignment.
     var_token = get_token(stream)
+    
     if is_variable(var_token):
     
+        # If the variable is already defined and has an array type then check
+        # for an index.
+        index = find_local_variable(var_token)
+        
+        if index != -1:
+            # Local variable
+            name, size, element_size = local_variables[index]
+            offset = local_variable_offset(index)
+            
+            if size != element_size and parse_array_index(stream):
+                # Record the size of the array index.
+                index_size = current_size
+                assignment = "local array"
+            else:
+                assignment = "local"
+            
+            current_size = size
+            current_element_size = element_size
+        else:
+            # Global variable
+            index = find_global_variable(var_token)
+            if index != -1:
+                name, size, element_size = global_variables[index]
+                offset = global_variable_offset(index)
+                
+                if size != element_size and parse_array_index(stream):
+                    # Record the size of the array index.
+                    index_size = current_size
+                    assignment = "global array"
+                else:
+                    assignment = "global"
+                
+                current_size = size
+                current_element_size = element_size
+            else:
+                # Currently undefined variable
+                assignment = "undefined"
+        
+        # Check for the assignment operator.
         token = get_token(stream)
         if token == tokeniser.assignment_token:
             debug_print("assignment")
-            assignment = True
         else:
             put_tokens(top)
+            assignment = None
     else:
         put_tokens(top)
     
@@ -1064,22 +1107,31 @@ def parse_statement(stream):
         generator.discard_code(address)
         return False
     
-    if assignment:
+    if assignment == "local array":
+        if element_size != current_size:
+            raise SyntaxError, "Type mismatch in indexed assignment at line %i." % tokeniser.line
+        generator.generate_store_array_value(offset, element_size, index_size)
+        current_size = current_element_size = element_size
     
-        index = find_local_variable(var_token)
-        if index != -1:
-            name, size, element_size = local_variables[index]
-            offset = local_variable_offset(index)
-            generator.generate_assign_local(offset, size)
-            return True
-        
-        index = find_global_variable(var_token)
-        if index != -1:
-            name, size, element_size = global_variables[index]
-            offset = global_variable_offset(index)
-            generator.generate_assign_global(offset, size)
-            return True
-        
+    elif assignment == "local":
+        if size != current_size:
+            raise SyntaxError, "Type mismatch in assignment at line %i." % tokeniser.line
+        generator.generate_assign_local(offset, size)
+        current_size = current_element_size = size
+    
+    elif assignment == "global array":
+        if element_size != current_size:
+            raise SyntaxError, "Type mismatch in indexed assignment at line %i." % tokeniser.line
+        generator.generate_store_array_value(offset, element_size, index_size)
+        current_size = current_element_size = element_size
+    
+    elif assignment == "global":
+        if size != current_size:
+            raise SyntaxError, "Type mismatch in assignment at line %i." % tokeniser.line
+        generator.generate_assign_global(offset, size)
+        current_size = current_element_size = size
+    
+    elif assignment == "undefined":
         if current_size == 0:
             raise SyntaxError, "No value to assign at line %i." % tokeniser.line
         

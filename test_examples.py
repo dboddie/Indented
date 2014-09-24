@@ -23,7 +23,7 @@ import os, sys
 import compiler, generator, opcodes, simulator
 
 expected_results = {
-    "address-1.txt": [109, 121, 102, 105, 108, 101, 125, 14],
+    "address-1.txt": [109, 121, 102, 105, 108, 101, 127, 14],
     "and-1.txt": [0, 31],
     "assignment-1.txt": [1],
     "assignment-2.txt": [1, 1],
@@ -32,12 +32,34 @@ expected_results = {
     "assignment-5.txt": [255, 0],
     "assignment-6.txt": [30],
     "assignment-7.txt": [2, 8],
+    "assignment-8.txt": [74, 101, 108, 108, 111],
     "def-1.txt": [],
+    "def-2.txt": [],
+    "def-3.txt": [],
+    "def-4.txt": [],
+    "def-5.txt": [],
+    "def-6.txt": [],
+    "def-7.txt": [1, 2, 6],
+    "def-8.txt": [123, 255],
+    "def-9.txt": [],
     "def-10.txt": [255],
     "def-11.txt": [6],
     "def-12.txt": [4],
     "def-13.txt": [4],
-    "def-14.txt": [123, 0]
+    "def-14.txt": [123, 0],
+    "def-15.txt": [],
+    "def-16.txt": [],
+    "def-17.txt": [],
+    "expression-1.txt": [],
+    "expression-2.txt": [],
+    "expression-3.txt": [],
+    "expression-4.txt": [0, 0, 0, 255],
+    "expression-5.txt": [0, 255, 255, 255],
+    "expression-6.txt": [255, 0, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0, 0],
+    "expression-7.txt": [255, 0, 255, 0, 255, 255, 255, 255, 0, 255, 255, 255, 255, 0],
+    "expression-8.txt": [255, 255, 1, 255],
+    "expression-9.txt": [3],
+    "expression-10.txt": [],
     }
 
 if __name__ == "__main__":

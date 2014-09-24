@@ -523,8 +523,8 @@ def get_variable_address():
 def load_array_value():
 
     offset = get_operand()
-    size = get_operand()
     index_size = get_operand()
+    size = get_operand()
     
     index = 0
     i = 0
@@ -537,6 +537,29 @@ def load_array_value():
     while i < size:
         push_byte(memory[current_frame + offset + i])
         i += 1
+
+def store_array_value():
+
+    offset = get_operand()
+    index_size = get_operand()
+    size = get_operand()
+    
+    element_ptr = stack_pointer - size
+    index_ptr = element_ptr - index_size
+    
+    index = 0
+    i = index_size
+    while i > 0:
+        i -= 1
+        index = (index << 8) | memory[index_ptr + i]
+    
+    offset = offset + (index * size)
+    i = size
+    while i > 0:
+        i -= 1
+        memory[current_frame + offset + i] = memory[element_ptr + i]
+    
+    _free_stack_space(size + index_size)
 
 def end():
 
@@ -579,6 +602,7 @@ lookup = {
     opcodes.sys_call: sys_call,
     opcodes.get_variable_address: get_variable_address,
     opcodes.load_array_value: load_array_value,
+    opcodes.store_array_value: store_array_value,
     opcodes.end: end
     }
 

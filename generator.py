@@ -320,7 +320,12 @@ def generate_get_variable_address(offset):
 def generate_load_array_value(offset, size, index_size):
 
     global code
-    code += [load_array_value, offset, size, index_size]
+    code += [load_array_value, offset, index_size, size]
+
+def generate_store_array_value(offset, size, index_size):
+
+    global code
+    code += [store_array_value, offset, index_size, size]
 
 def generate_end():
 

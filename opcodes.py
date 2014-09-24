@@ -53,7 +53,8 @@ copy_value, \
 sys_call, \
 get_variable_address, \
 load_array_value, \
-end = range(0, 74, 2)
+store_array_value, \
+end = range(0, 76, 2)
 
 address_size = 2
 branch_size = 1
