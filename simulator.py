@@ -478,6 +478,8 @@ def copy_value():
 
 def sys_call():
 
+    global sys_call_prompt
+    
     size = get_operand()
     temp = size
 
@@ -498,8 +500,12 @@ def sys_call():
     address_high = pop_byte()
     address_low = pop_byte()
     format.insert(0, "%x" % (address_low | (address_high << 8)))
-
-    q = raw_input("system call (%s) returns? " % " ".join(format))
+    
+    if sys_call_prompt:
+        q = raw_input("system call (%s) returns? " % " ".join(format))
+    else:
+        q = None
+    
     if not q:
         q = "0"
     v = int(q)
@@ -624,7 +630,8 @@ def load(code, address):
 
 def run(step = True, verbose = True):
 
-    global program_counter, stack_pointer
+    global program_counter, stack_pointer, sys_call_prompt
+    sys_call_prompt = step
     
     while True:
     

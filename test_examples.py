@@ -33,6 +33,7 @@ expected_results = {
     "assignment-6.txt": [30],
     "assignment-7.txt": [2, 8],
     "assignment-8.txt": [74, 101, 108, 108, 111],
+    "assignment-9.txt": [65, 66, 67, 68, 69, 70, 6],
     "def-1.txt": [],
     "def-2.txt": [],
     "def-3.txt": [],
@@ -60,7 +61,49 @@ expected_results = {
     "expression-8.txt": [255, 255, 1, 255],
     "expression-9.txt": [3],
     "expression-10.txt": [],
+    "if-1.txt": [],
+    "if-2.txt": [],
+    "if-3.txt": [],
+    "if-4.txt": [],
+    "if-5.txt": [1],
+    "if-6.txt": [2],
+    "shift-1.txt": [61, 0, 1, 152, 0, 34],
+    "string-1.txt": [72, 101, 108, 108, 111],
+    "string-2.txt": [72, 101, 108, 108, 111, 0, 119, 111, 114, 108, 100],
+    "string-3.txt": [],
+    "string-4.txt": [72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 123],
+    "string-5.txt": [83, 116, 114, 105, 110, 103, 83],
+    "string-6.txt": [83, 116, 114, 105, 110, 103, 6, 103],
+    "string-7.txt": [83, 116, 114, 105, 110, 103, 6, 103],
+    "string-8.txt": [65, 66, 67, 68, 69, 70],
+    "string-9.txt": [83, 116, 114, 105, 110, 103, 6],
+    "while-2.txt": [0],
+    "while-3.txt": [1, 88],
+    "while-4.txt": [1, 14]
     }
+
+skip = [
+    "inline-asm-1.txt",
+    "inline-asm-2.txt",
+    "inline-asm-3.txt",
+    "sys-1.txt",
+    "sys-2.txt",
+    "sys-3.txt",
+    "sys-4.txt",
+    "sys-5.txt",
+    "sys-6.txt",
+    "sys-7.txt",
+    "sys-8.txt",
+    "sys-9.txt",
+    "sys-10.txt",
+    "sys-11.txt",
+    "sys-12.txt",
+    "sys-13.txt",
+    "sys-14.txt",
+    "sys-15.txt",
+    "sys-16.txt",
+    "while-1-fail.txt"  # does not terminate
+    ]
 
 if __name__ == "__main__":
 
@@ -72,6 +115,10 @@ if __name__ == "__main__":
         try:
             stream = open(os.path.join("Examples", name))
         except IOError:
+            continue
+        
+        if name in skip:
+            print "Skipping", name
             continue
         
         print name,

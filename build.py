@@ -99,17 +99,26 @@ if __name__ == "__main__":
         manifest_dir = os.path.split(manifest_file)[0]
         
         for line in lines:
-            name, load, exec_ = line.strip().split()
-            path = os.path.join(manifest_dir, name)
+            pieces = line.strip().split()
+            if len(pieces) == 4:
+                source, obj, load, exec_ = pieces
+                source_path = os.path.join(manifest_dir, source)
+            else:
+                obj, load, exec_ = pieces
+            
+            obj_path = os.path.join(manifest_dir, obj)
+            if len(pieces) == 4:
+                system("ophis " + source_path + " -o " + obj_path)
+            
             try:
-                data = open(path).read()
+                data = open(obj_path).read()
             except IOError:
-                sys.stderr.write("Failed to open file found in manifest: %s\n" % name)
+                sys.stderr.write("Failed to open file found in manifest: %s\n" % obj_path)
                 sys.exit(1)
             
             load = int(load[2:], 16)
             exec_ = int(exec_[2:], 16)
-            files.append((name, load, exec_, data))
+            files.append((obj, load, exec_, data))
     
     u = UEFfile.UEFfile(creator = 'build.py '+version)
     u.minor = 6

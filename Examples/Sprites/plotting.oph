@@ -17,7 +17,14 @@
 
 plot8x8:    ; A=sprite number,X=x coordinate,Y=y coordinate
 
-    pha     ; store A
+    asl     ; Calculate the sprite address.
+    asl
+    asl
+    asl
+    sta $8c
+    lda #$50
+    sta $8d
+
     txa
     pha     ; store X
     
@@ -52,15 +59,6 @@ plot8x8:    ; A=sprite number,X=x coordinate,Y=y coordinate
     clc
 
     plot8x8_next:    
-    pla     ; retrieve A
-
-    asl
-    asl
-    asl
-    asl
-    sta $8c
-    lda #$50
-    sta $8d
 
     ldy #15
     plot8x8_loop:

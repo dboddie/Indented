@@ -52,7 +52,7 @@ def link(functions, base_address):
     # structures for other implementations.
     index = {}
     
-    for name, parameters, local_variables, fn_code, return_size in functions:
+    for name, parameters, local_variables, fn_code, return_size, return_array in functions:
     
         index[name] = len(code)
         code += fn_code

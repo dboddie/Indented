@@ -34,6 +34,7 @@ global_variables = []
 local_variables = []
 current_size = 0
 current_element_size = 0
+current_array = False
 
 # Function definitions
 
@@ -74,7 +75,7 @@ def is_constant(token):
 
 def get_size(token):
 
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     if is_boolean(token):
         current_size = current_element_size = 1
@@ -87,6 +88,7 @@ def get_size(token):
     if is_string(token):
         current_size = len(decode_string(token))
         current_element_size = array_types["string"]
+        current_array = True
         return current_size
     
     raise SyntaxError, "Unknown size for constant '%s' at line %i." % (token, tokeniser.line)
@@ -293,7 +295,7 @@ def total_variable_size(variables):
 def find_function(token):
 
     index = 0
-    for name, parameters, variables, code, rsize in functions:
+    for name, parameters, variables, code, rsize, return_array in functions:
         if name == token:
             return index
         index += 1
@@ -303,7 +305,7 @@ def find_function(token):
 def function_address(token):
 
     address = 0
-    for name, parameters, variables, code, rsize in functions:
+    for name, parameters, variables, code, rsize, return_array in functions:
         if name == token:
             return address
         address += len(code)
@@ -403,7 +405,7 @@ def parse_builtin_call(stream):
 
     '<built-in call> = "_addr" "(" [<argument>+] ")"'
     
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     top = len(used)
     token = get_token(stream)
@@ -436,6 +438,7 @@ def parse_builtin_call(stream):
     # Set the size of the return value to ensure that it is assigned or
     # discarded as necessary.
     current_size = current_element_size = opcodes.address_size
+    current_array = False
     
     return True
 
@@ -587,8 +590,10 @@ def parse_definition(stream):
                                array_types.get(type_token, types[type_token]),
                                type_token in array_types))
         
-        # Tentatively add the function to the list of definitions.
-        functions.append([function_name, parameters, local_variables[:], None, 0])
+        # Tentatively add the function to the list of definitions with the
+        # format:
+        # <name> <parameters> <local variables> <code> <return size> <return array>
+        functions.append([function_name, parameters, local_variables[:], None, 0, False])
         
         # Indicate that we are parsing a function and reset the default return
         # size.
@@ -616,7 +621,7 @@ def parse_definition(stream):
         
         total_param_size = total_variable_size(parameters)
         total_var_size = total_variable_size(local_variables) - total_param_size
-        return_size = functions[-1][-1]
+        return_size, return_array = functions[-1][-2:]
         generator.generate_function_tidy(total_var_size + total_param_size,
                                          return_size)
         
@@ -640,7 +645,7 @@ def parse_definition(stream):
         # Replace the placeholder definition with the full one.
         functions.pop()
         functions.append((function_name, parameters, local_variables[:], code,
-                          return_size))
+                          return_size, return_array))
         
         # Restore the list of local variables.
         local_variables[:] = global_variables
@@ -698,7 +703,7 @@ def parse_function_call(stream):
 
     '<function call> = <name> "(" [<argument>+] ")"'
     
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     top = len(used)
     token = get_token(stream)
@@ -712,7 +717,7 @@ def parse_function_call(stream):
     if token != tokeniser.arguments_begin_token:
         raise SyntaxError, "Function arguments must follow '(' at line %i.\n" % tokeniser.line
     
-    function_name, parameters, variables, code, rsize = functions[index]
+    function_name, parameters, variables, code, rsize, return_array = functions[index]
     
     # Generate code to record the address of the current frame in a frame base
     # address register, pushing the previous frame base address onto the stack
@@ -762,6 +767,7 @@ def parse_function_call(stream):
     # Record the size of the return value to ensure that it is assigned or
     # discarded as necessary.
     current_size = current_element_size = rsize
+    current_array = return_array
     
     return True
 
@@ -853,7 +859,7 @@ def parse_operation(stream):
 
     '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" | "&" | "<<" | ">>" <operand>'
     
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     top = len(used)
     token = get_token(stream)
@@ -881,37 +887,45 @@ def parse_operation(stream):
         debug_print("equals", token)
         generator.generate_equals(current_size)
         current_size = current_element_size = 1
+        current_array = False
     
     elif token == "!=":
         debug_print("not equals", token)
         generator.generate_not_equals(current_size)
         current_size = current_element_size = 1
+        current_array = False
     
     elif token == "<":
         debug_print("less than", token)
         generator.generate_less_than(current_size)
         current_size = current_element_size = 1
+        current_array = False
     
     elif token == ">":
         debug_print("greater than", token)
         generator.generate_greater_than(current_size)
         current_size = current_element_size = 1
+        current_array = False
     
     elif token == "+":
         debug_print("add", token)
         generator.generate_add(current_size)
+        current_array = False
     
     elif token == "-":
         debug_print("subtract", token)
         generator.generate_subtract(current_size)
+        current_array = False
     
     elif token == "*":
         debug_print("multiply", token)
         generator.generate_multiply(current_size)
+        current_array = False
     
     elif token == "/":
         debug_print("divide", token)
         generator.generate_divide(current_size)
+        current_array = False
     
     elif token == "and":
     
@@ -921,6 +935,7 @@ def parse_operation(stream):
         debug_print("and", token)
         generator.generate_logical_and()
         current_size = current_element_size = 1
+        current_array = False
     
     elif token == "or":
     
@@ -930,6 +945,7 @@ def parse_operation(stream):
         debug_print("or", token)
         generator.generate_logical_or()
         current_size = current_element_size = 1
+        current_array = False
     
     # The bitwise AND operation truncates the result to the size of the second
     # operand.
@@ -938,6 +954,7 @@ def parse_operation(stream):
     
         debug_print("&", token)
         generator.generate_bitwise_and(size1, current_size)
+        current_array = False
     
     # The shift operators are also asymmetric, with the second operand
     # typically being only a single byte, but the result is the same size as
@@ -950,6 +967,7 @@ def parse_operation(stream):
         
         debug_print("<<", token)
         current_size = current_element_size = size1
+        current_array = False
         generator.generate_left_shift(current_size)
     
     elif token == ">>":
@@ -959,6 +977,7 @@ def parse_operation(stream):
         
         debug_print(">>", token)
         current_size = current_element_size = size1
+        current_array = False
         generator.generate_right_shift(current_size)
     
     return True
@@ -1009,11 +1028,12 @@ def parse_return(stream):
         raise SyntaxError, "Cannot use return from outside function at line %i." % tokeniser.line
     
     if parse_separator(stream):
-        # No return value supplied. Set the return value size to zero.
-        functions[-1][-1] = 0
+        # No return value supplied. Set the return value size to zero and the
+        # return array value to False.
+        functions[-1][-2:] = [0, False]
     
     elif parse_expression(stream):
-        functions[-1][-1] = current_size
+        functions[-1][-2:] = [current_size, current_array]
     
     else:
         raise SyntaxError, "Invalid return from function at line %i." % tokeniser.line
@@ -1038,7 +1058,7 @@ def parse_statement(stream):
 
     "<statement> = <expression> <separator>"
     
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     top = len(used)
     address = len(generator.code)
@@ -1065,9 +1085,6 @@ def parse_statement(stream):
                 assignment = "local array"
             else:
                 assignment = "local"
-            
-            current_size = size
-            current_element_size = element_size
         else:
             # Global variable
             index = find_global_variable(var_token)
@@ -1081,9 +1098,6 @@ def parse_statement(stream):
                     assignment = "global array"
                 else:
                     assignment = "global"
-                
-                current_size = size
-                current_element_size = element_size
             else:
                 # Currently undefined variable
                 assignment = "undefined"
@@ -1115,24 +1129,28 @@ def parse_statement(stream):
             raise SyntaxError, "Type mismatch in indexed assignment at line %i." % tokeniser.line
         generator.generate_store_array_value(offset, element_size, index_size)
         current_size = current_element_size = element_size
+        current_array = True
     
     elif assignment == "local":
         if size != current_size:
             raise SyntaxError, "Type mismatch in assignment at line %i." % tokeniser.line
         generator.generate_assign_local(offset, size)
         current_size = current_element_size = size
+        current_array = False
     
     elif assignment == "global array":
         if element_size != current_size:
             raise SyntaxError, "Type mismatch in indexed assignment at line %i." % tokeniser.line
         generator.generate_store_array_value(offset, element_size, index_size)
         current_size = current_element_size = element_size
+        current_array = True
     
     elif assignment == "global":
         if size != current_size:
             raise SyntaxError, "Type mismatch in assignment at line %i." % tokeniser.line
         generator.generate_assign_global(offset, size)
         current_size = current_element_size = size
+        current_array = False
     
     elif assignment == "undefined":
         if current_size == 0:
@@ -1141,7 +1159,7 @@ def parse_statement(stream):
         debug_print("define", var_token)
         ### We need a way to determine if the variable is local or global.
         local_variables.append((var_token, current_size, current_element_size,
-                                False))
+                                current_array))
         index = find_local_variable(var_token)
         offset = local_variable_offset(index)
         generator.generate_assign_local(offset, current_size)
@@ -1156,7 +1174,7 @@ def parse_system_call(stream):
 
     '<system call> = _call "(" <address> [<A> [<X> [<Y>]]] ")"'
     
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     top = len(used)
     token = get_token(stream)
@@ -1214,14 +1232,13 @@ def parse_system_call(stream):
     # Set the size of the return value to ensure that it is assigned or
     # discarded as necessary.
     current_size = current_element_size = opcodes.system_call_return_size
+    current_array = False
     
     return True
 
 def parse_value(stream):
 
     "<value> = <number> | <string>"
-    
-    global current_size, current_element_size
     
     top = len(used)
     token = get_token(stream)
@@ -1251,7 +1268,7 @@ def parse_value(stream):
 
 def parse_variable(stream):
 
-    global current_size, current_element_size
+    global current_size, current_element_size, current_array
     
     top = len(used)
     token = get_token(stream)
@@ -1269,9 +1286,13 @@ def parse_variable(stream):
             index_size = current_size
             generator.generate_load_array_value(offset, element_size, index_size)
             current_size = current_element_size = element_size
+            # The element of an array is not an array.
+            current_array = False
         else:
             generator.generate_load_local(offset, size)
             current_size = current_element_size = size
+            current_array = array
+        
         return True
     
     index = find_global_variable(token)
@@ -1283,9 +1304,14 @@ def parse_variable(stream):
             index_size = current_size
             generator.generate_load_array_value(offset, element_size, index_size)
             current_size = current_element_size = element_size
+            # The element of an array is not an array.
+            current_array = False
         else:
             generator.generate_load_global(offset, size)
             current_size = current_element_size = size
+            current_array = array
+        
+        current_array = False
         return True
     
     put_tokens(top)
