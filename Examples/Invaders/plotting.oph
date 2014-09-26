@@ -1,0 +1,131 @@
+; Copyright (C) 2014 David Boddie <david@boddie.org.uk>
+;
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+.org $4000
+
+plot8x8:    ; A=sprite number,X=x coordinate (0-38),Y=y coordinate (0-62)
+
+    asl     ; Calculate the sprite address.
+    asl
+    asl
+    asl
+    sta $8c
+    lda #$50
+    sta $8d
+
+    txa
+    pha     ; store X
+    
+    tya
+    lsr
+    and #$03
+    tax
+    lda rows_low,x
+    sta $8e
+    tya
+    lsr
+    tax
+    lda rows_high,x
+    sta $8f
+
+    pla     ; retrieve X
+    pha     ; store X
+    and #$1f
+    asl
+    asl
+    asl
+    adc $8e
+    sta $8e
+    lda $8f
+    adc #0
+    sta $8f
+    clc
+
+    pla     ; retrieve X
+    cmp #$20
+    bcc plot8x8_next
+
+    inc $8f
+    clc
+
+    plot8x8_next:
+
+    tya
+    and #$01
+    bne plot8x8_y1
+
+    ldy #15
+    plot8x8_loop:
+
+        lda ($8c),y
+        sta ($8e),y
+        dey
+        bpl plot8x8_loop
+
+    clc
+    rts
+
+    plot8x8_y1:
+
+    lda $8e
+    adc #4
+    sta $8e
+
+    ldx #1
+    plot8x8_y1_loop_0:
+
+        ldy #3
+        plot8x8_y1_loop_1:
+
+            lda ($8c),y
+            sta ($8e),y
+            dey
+            bpl plot8x8_y1_loop_1
+
+        ldy #11
+        plot8x8_y1_loop_2:
+
+            lda ($8c),y
+            sta ($8e),y
+            dey
+            cpy #8
+            bpl plot8x8_y1_loop_2
+
+        dex
+        bmi plot8x8_y1_exit
+
+        lda $8e
+        adc #$3c
+        sta $8e
+        lda $8f
+        adc #$01
+        sta $8f
+        clc
+
+        lda $8c
+        adc #4
+        sta $8c
+
+        jmp plot8x8_y1_loop_0
+
+    plot8x8_y1_exit:
+    clc
+    rts
+
+rows_low:  .byte $00, $40, $80, $c0
+
+rows_high: .byte $58, $59, $5a, $5b, $5d, $5e, $5f, $60, $62, $63, $64, $65
+           .byte $67, $68, $69, $6a, $6c, $6d, $6e, $6f, $71, $72, $73, $74
+           .byte $76, $77, $78, $79, $7b, $7c, $7d, $7e

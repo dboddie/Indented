@@ -1,0 +1,67 @@
+def mode number (byte)
+    _call(0xffee 22)
+    _call(0xffee number)
+
+def cursor_off
+    _call(0xffee 23)
+    _call(0xffee 1)
+    i = 0
+    while i < 8
+        _call(0xffee 0)
+        i = i + 1
+
+def vsync
+    _call(0xfff4 19)
+
+def check_keys
+    if _call(0xfff4 129 -98 255) == 0xffff8101
+        return 1
+    if _call(0xfff4 129 -67 255) == 0xffff8101
+        return 2
+    if _call(0xfff4 129 -74 255) == 0xffff8101
+        return 3
+    return 0
+
+def oscli command_addr (int16)
+    _call(0xfff7 0 (command_addr & 0xff) (command_addr >> 8) & 0xff)
+
+def load
+    # Load sprites
+    sprites_command = "LOAD SPRITES\r"
+    oscli(_addr(sprites_command))
+
+    routines_command = "LOAD ROUTINES\r"
+    oscli(_addr(routines_command))
+
+# Load the other files then change mode.
+
+load()
+mode(5)
+cursor_off()
+
+# Fill the playing area.
+
+x = 19
+y = 60
+_call(0x4000 1 x y)
+
+while True
+
+    key = check_keys()
+    
+    if key != 0
+    
+        new_x = x
+        new_y = y
+        
+        if (key == 1) and (x > 2)
+            new_x = x - 1
+        else
+            if (key == 2) and (x < 36)
+                new_x = x + 1
+        
+        vsync()
+        _call(0x4000 0 x y)
+        _call(0x4000 1 new_x new_y)
+        x = new_x
+        y = new_y
