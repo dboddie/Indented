@@ -738,10 +738,10 @@ def parse_function_call(stream):
     for name, size, element_size, array in parameters:
     
         if not parse_expression(stream):
-            raise SyntaxError, "Invalid argument to function '%s' at line %i.\n" % (token, tokeniser.line)
+            raise SyntaxError, "Invalid argument to function '%s' at line %i.\n" % (function_name, tokeniser.line)
         
         if current_size != size:
-            raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (token, tokeniser.line)
+            raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (function_name, tokeniser.line)
     
     token = get_token(stream)
     if token != tokeniser.arguments_end_token:

@@ -15,7 +15,7 @@
 
 .org $4000
 
-plot8x8:    ; A=sprite number,X=x coordinate,Y=y coordinate
+plot8x8:    ; A=sprite number,X=x coordinate (0-38),Y=y coordinate (0-62)
 
     asl     ; Calculate the sprite address.
     asl
@@ -29,11 +29,13 @@ plot8x8:    ; A=sprite number,X=x coordinate,Y=y coordinate
     pha     ; store X
     
     tya
+    lsr
     and #$03
     tax
     lda rows_low,x
     sta $8e
     tya
+    lsr
     tax
     lda rows_high,x
     sta $8f
@@ -58,7 +60,11 @@ plot8x8:    ; A=sprite number,X=x coordinate,Y=y coordinate
     inc $8f
     clc
 
-    plot8x8_next:    
+    plot8x8_next:
+
+    tya
+    and #$01
+    bne plot8x8_y1
 
     ldy #15
     plot8x8_loop:
@@ -68,6 +74,53 @@ plot8x8:    ; A=sprite number,X=x coordinate,Y=y coordinate
         dey
         bpl plot8x8_loop
 
+    clc
+    rts
+
+    plot8x8_y1:
+
+    lda $8e
+    adc #4
+    sta $8e
+
+    ldx #1
+    plot8x8_y1_loop_0:
+
+        ldy #3
+        plot8x8_y1_loop_1:
+
+            lda ($8c),y
+            sta ($8e),y
+            dey
+            bpl plot8x8_y1_loop_1
+
+        ldy #11
+        plot8x8_y1_loop_2:
+
+            lda ($8c),y
+            sta ($8e),y
+            dey
+            cpy #8
+            bpl plot8x8_y1_loop_2
+
+        dex
+        bmi plot8x8_y1_exit
+
+        lda $8e
+        adc #$3c
+        sta $8e
+        lda $8f
+        adc #$01
+        sta $8f
+        clc
+
+        lda $8c
+        adc #4
+        sta $8c
+
+        jmp plot8x8_y1_loop_0
+
+    plot8x8_y1_exit:
     clc
     rts
 
