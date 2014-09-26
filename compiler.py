@@ -55,8 +55,9 @@ system_call_parameters = [("address", opcodes.address_size),
 
 # Constant and type handling
 
-types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4}
-array_types = {"int8[]": 1, "int16[]": 2, "int32[]": 4, "string": 1}
+types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4,
+         "int8_array": 2, "int16_array": 2, "int32_array": 2, "string": 2}
+array_types = {"int8_array": 1, "int16_array": 2, "int32_array": 4, "string": 1}
 
 def is_constant(token):
 
@@ -240,7 +241,7 @@ def is_variable(token):
 def find_local_variable(token):
 
     index = 0
-    for name, size, element_size in local_variables:
+    for name, size, element_size, array in local_variables:
         if name == token:
             debug_print("local variable", token)
             return index
@@ -253,7 +254,7 @@ def local_variable_offset(index):
     offset = 0
     while index > 0:
         index -= 1
-        name, size, element_size = local_variables[index]
+        name, size, element_size, array = local_variables[index]
         offset += size
     
     return offset
@@ -261,7 +262,7 @@ def local_variable_offset(index):
 def find_global_variable(token):
 
     index = 0
-    for name, size, element_size in global_variables:
+    for name, size, element_size, array in global_variables:
         if name == token:
             debug_print("global variable", token)
             return index
@@ -274,7 +275,7 @@ def global_variable_offset(index):
     offset = 0
     while index > 0:
         index -= 1
-        name, size, element_size = global_variables[index]
+        name, size, element_size, array = global_variables[index]
         offset += size
     
     return offset
@@ -282,7 +283,7 @@ def global_variable_offset(index):
 def total_variable_size(variables):
 
     total_var_size = 0
-    for name, size, element_size in variables:
+    for name, size, element_size, array in variables:
         total_var_size += size
     
     return total_var_size
@@ -421,7 +422,7 @@ def parse_builtin_call(stream):
     
     index = find_local_variable(var_token)
     if index != -1:
-        name, size, element_size = local_variables[index]
+        name, size, element_size, array = local_variables[index]
         offset = local_variable_offset(index)
     
     token = get_token(stream)
@@ -578,11 +579,13 @@ def parse_definition(stream):
             if token != tokeniser.arguments_end_token:
                 raise SyntaxError, "Expected ')' after type '%s' at line %i." % (
                     type_token, tokeniser.line)
-        
+            
             local_variables.append((name, types[type_token],
-                                    array_types.get(type_token, types[type_token])))
+                                    array_types.get(type_token, types[type_token]),
+                                    type_token in array_types))
             parameters.append((name, types[type_token],
-                               array_types.get(type_token, types[type_token])))
+                               array_types.get(type_token, types[type_token]),
+                               type_token in array_types))
         
         # Tentatively add the function to the list of definitions.
         functions.append([function_name, parameters, local_variables[:], None, 0])
@@ -727,7 +730,7 @@ def parse_function_call(stream):
     
     total_param_size = total_variable_size(parameters)
     
-    for name, size, element_size in parameters:
+    for name, size, element_size, array in parameters:
     
         if not parse_expression(stream):
             raise SyntaxError, "Invalid argument to function '%s' at line %i.\n" % (token, tokeniser.line)
@@ -1053,10 +1056,10 @@ def parse_statement(stream):
         
         if index != -1:
             # Local variable
-            name, size, element_size = local_variables[index]
+            name, size, element_size, array = local_variables[index]
             offset = local_variable_offset(index)
             
-            if size != element_size and parse_array_index(stream):
+            if array and parse_array_index(stream):
                 # Record the size of the array index.
                 index_size = current_size
                 assignment = "local array"
@@ -1069,10 +1072,10 @@ def parse_statement(stream):
             # Global variable
             index = find_global_variable(var_token)
             if index != -1:
-                name, size, element_size = global_variables[index]
+                name, size, element_size, array = global_variables[index]
                 offset = global_variable_offset(index)
                 
-                if size != element_size and parse_array_index(stream):
+                if array and parse_array_index(stream):
                     # Record the size of the array index.
                     index_size = current_size
                     assignment = "global array"
@@ -1137,7 +1140,8 @@ def parse_statement(stream):
         
         debug_print("define", var_token)
         ### We need a way to determine if the variable is local or global.
-        local_variables.append((var_token, current_size, current_element_size))
+        local_variables.append((var_token, current_size, current_element_size,
+                                False))
         index = find_local_variable(var_token)
         offset = local_variable_offset(index)
         generator.generate_assign_local(offset, current_size)
@@ -1258,10 +1262,10 @@ def parse_variable(stream):
     
     index = find_local_variable(token)
     if index != -1:
-        name, size, element_size = local_variables[index]
+        name, size, element_size, array = local_variables[index]
         offset = local_variable_offset(index)
         
-        if size != element_size and parse_array_index(stream):
+        if array and parse_array_index(stream):
             index_size = current_size
             generator.generate_load_array_value(offset, element_size, index_size)
             current_size = current_element_size = element_size
@@ -1272,10 +1276,10 @@ def parse_variable(stream):
     
     index = find_global_variable(token)
     if index != -1:
-        name, size, element_size = global_variables[index]
+        name, size, element_size, array = global_variables[index]
         offset = global_variable_offset(index)
         
-        if size != element_size and parse_array_index(stream):
+        if array and parse_array_index(stream):
             index_size = current_size
             generator.generate_load_array_value(offset, element_size, index_size)
             current_size = current_element_size = element_size
