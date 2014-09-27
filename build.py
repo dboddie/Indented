@@ -108,7 +108,10 @@ if __name__ == "__main__":
             
             obj_path = os.path.join(manifest_dir, obj)
             if len(pieces) == 4:
-                system("ophis " + source_path + " -o " + obj_path)
+                if source_path.endswith(".oph"):
+                    system("ophis " + source_path + " -o " + obj_path)
+                elif source_path.endswith(".py"):
+                    system("python " + source_path + " -o " + obj_path)
             
             try:
                 data = open(obj_path).read()
