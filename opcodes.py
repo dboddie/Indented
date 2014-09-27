@@ -64,8 +64,10 @@ copy_value, \
 sys_call, \
 get_variable_address, \
 load_array_value, \
+load_array_byte_value, \
 store_array_value, \
-end = range(256, 256 + 49)
+store_array_byte_value, \
+end = range(256, 256 + 51)
 
 address_size = 2
 branch_size = 1

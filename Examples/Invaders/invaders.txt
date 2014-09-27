@@ -116,27 +116,24 @@ while True
     enemies_counter = enemies_counter - 1
     
     if enemies_counter == 0
-        enemies_counter = 30
+        enemies_counter = 10
         enemies_x[next_enemy] = 38
         ey = 32 + next_enemy
         enemies_y[next_enemy] = ey
         _call(0x4000 3 38 ey)
         next_enemy = (next_enemy + 1) & 7
 
-    i = move_enemy
+    i = 0
     while i < 8
     
         ey = enemies_y[i]
         if ey != 255
             ex = enemies_x[i]
             _call(0x4000 0 ex ey)
-            ex = ex - 1
-            if ex > 0
-                _call(0x4000 3 ex ey)
-                enemies_x[i] = ex
+            if ex > 1
+                _call(0x4000 3 ex - 1 ey)
+                enemies_x[i] = ex - 1
             else
                 enemies_y[i] = 255
         
-        i = i + 2
-
-    move_enemy = 1 - move_enemy
+        i = i + 1

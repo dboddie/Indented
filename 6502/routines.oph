@@ -91,7 +91,9 @@ lookup_low:
 .byte <[system_call - 1]
 .byte <[get_variable_address - 1]
 .byte <[load_array_value - 1]
+.byte <[load_array_byte_value - 1]
 .byte <[store_array_value - 1]
+.byte <[store_array_byte_value - 1]
 .byte <[end - 1]
 
 lookup_high:
@@ -142,7 +144,9 @@ lookup_high:
 .byte >[system_call - 1]
 .byte >[get_variable_address - 1]
 .byte >[load_array_value - 1]
+.byte >[load_array_byte_value - 1]
 .byte >[store_array_value - 1]
+.byte >[store_array_byte_value - 1]
 .byte >[end - 1]
 
 program:
@@ -198,7 +202,30 @@ _push_byte:  ; A=value
     _push_byte_exit:
     rts
 
-_pop_byte:
+_push_address:  ; A,X=low,high
+
+    ldy #0
+    sta (stack_pointer),y
+    txa
+    iny
+    sta (stack_pointer),y
+
+    inc stack_pointer
+    bne _push_address_next
+
+    inc [stack_pointer + 1]
+
+    _push_address_next:
+
+    inc stack_pointer
+    bne _push_address_exit
+
+    inc [stack_pointer + 1]
+
+    _push_address_exit:
+    rts
+
+_pop_byte:      ; Returns A=value
 
     dec stack_pointer
     lda stack_pointer
@@ -213,10 +240,40 @@ _pop_byte:
     clc
     rts
 
-_push_call_byte: ; A=value
+_pop_bytes: ; Returns A,X=values
+
+    dec stack_pointer
+    dec stack_pointer
+    lda stack_pointer
+    cmp #$fe
+    bcc _pop_bytes_exit
+
+    clc
+    dec [stack_pointer + 1]
+
+    _pop_bytes_exit:
+    ldy #1
+    lda (stack_pointer),y
+    tax
+    dey
+    lda (stack_pointer),y
+    rts
+
+_push_call:     ; A,X=low,high
 
     ldy #0
     sta (call_stack_pointer),y
+    iny
+    txa
+    sta (call_stack_pointer),y
+
+    inc call_stack_pointer
+    bne _push_call_byte_next
+
+    inc [call_stack_pointer + 1]
+
+    _push_call_byte_next:
+
     inc call_stack_pointer
     bne _push_call_byte_exit
 
@@ -225,19 +282,24 @@ _push_call_byte: ; A=value
     _push_call_byte_exit:
     rts
 
-_pop_call_byte:
+_pop_call:      ; Returns A,X=low,high
 
     dec call_stack_pointer
+    dec call_stack_pointer
     lda call_stack_pointer
-    cmp #$ff
-    bne _pop_call_byte_exit
+    cmp #$fe
+    bcc _pop_call_byte_exit
 
+    clc
     dec [call_stack_pointer + 1]
 
     _pop_call_byte_exit:
-    ldy #0
+
+    ldy #1
     lda (call_stack_pointer),y
-    clc
+    tax
+    dey
+    lda (call_stack_pointer),y
     rts
 
 _increment_program_counter:
@@ -471,36 +533,32 @@ compare_greater_than:
 
 compare_equals_byte:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     cmp temp
     beq compare_returns_true
     bne compare_returns_false
 
 compare_not_equals_byte:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     cmp temp
     bne compare_returns_true
     beq compare_returns_false
 
 compare_less_than_byte:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     cmp temp
     bcc compare_returns_true
     bcs compare_returns_false
 
 compare_greater_than_byte:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     cmp temp
     bcc compare_returns_false
     beq compare_returns_false
@@ -549,9 +607,8 @@ add:
 
 add_byte:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     adc temp
     jsr _push_byte
     jmp next_instruction
@@ -597,9 +654,8 @@ subtract:
 
 subtract_byte:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     sec
     sbc temp
     clc
@@ -627,18 +683,16 @@ divide:
 
 logical_and:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     and temp
     jsr _push_byte
     jmp next_instruction
 
 logical_or:
 
-    jsr _pop_byte
-    sta temp
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx temp
     ora temp
     jsr _push_byte
     jmp next_instruction
@@ -1040,9 +1094,8 @@ function_return:
     ;lda #110
     ;jsr $ffee
 
-    jsr _pop_call_byte
-    sta [program_counter + 1]
-    jsr _pop_call_byte
+    jsr _pop_call
+    stx [program_counter + 1]
     sta program_counter
     jmp next_instruction
 
@@ -1059,10 +1112,8 @@ function_call:
     sta [temp + 1]
 
     lda program_counter
-    jsr _push_call_byte
-    lda [program_counter + 1]
-    jsr _push_call_byte
-    nop
+    ldx [program_counter + 1]
+    jsr _push_call
 
     lda temp
     sta program_counter
@@ -1076,9 +1127,8 @@ load_current_frame_address:
     ;jsr $ffee
 
     lda current_frame
-    jsr _push_byte
-    lda [current_frame + 1]
-    jsr _push_byte
+    ldx [current_frame + 1]
+    jsr _push_address
     jmp next_instruction
 
 store_stack_top_in_current_frame:
@@ -1144,9 +1194,8 @@ pop_current_frame_address:
     ;lda #80
     ;jsr $ffee
 
-    jsr _pop_byte
-    sta [current_frame + 1]
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx [current_frame + 1]
     sta [current_frame]
     jmp next_instruction
 
@@ -1205,9 +1254,8 @@ system_call:
     sta sys_A
     system_call_read_2:
 
-    jsr _pop_byte
-    sta [temp + 1]
-    jsr _pop_byte
+    jsr _pop_bytes
+    stx [temp + 1]
     sta temp
 
     lda sys_A
@@ -1259,9 +1307,8 @@ get_variable_address:
     clc
 
     lda temp
-    jsr _push_byte
-    lda [temp + 1]
-    jsr _push_byte
+    ldx [temp + 1]
+    jsr _push_address
 
     jmp next_instruction
 
@@ -1303,6 +1350,25 @@ load_array_value:
 
     jmp next_instruction
 
+load_array_byte_value:
+
+    jsr _get_operand
+    sta offset
+
+    jsr _pop_byte
+    adc offset
+    adc current_frame
+    sta temp
+    lda [current_frame + 1]
+    adc #0
+    sta [temp + 1]
+    clc
+
+    ldy #0
+    lda (temp),y
+    jsr _push_byte
+    jmp next_instruction
+
 store_array_value:
 
     jsr _get_operand
@@ -1342,6 +1408,28 @@ store_array_value:
 
     lda [temp + 1]          ; Free both the index and value from the stack.
     jsr _free_stack_space
+    jmp next_instruction
+
+store_array_byte_value:
+
+    jsr _get_operand
+    sta offset
+
+    jsr _pop_byte
+    sta [temp + 2]          ; value
+
+    jsr _pop_byte           ; index
+    adc offset
+    adc current_frame
+    sta temp
+    lda [current_frame + 1]
+    adc #0
+    sta [temp + 1]
+    clc
+
+    ldy #0
+    lda [temp + 2]
+    sta (temp),y
     jmp next_instruction
 
 _calculate_array_element_address:   ; Returns temp+2:temp+3=address of element

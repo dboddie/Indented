@@ -624,6 +624,13 @@ def load_array_value():
         push_byte(memory[current_frame + offset + i])
         i += 1
 
+def load_array_byte_value():
+
+    offset = get_operand()
+    index = pop_byte()
+    offset = offset + index
+    push_byte(memory[current_frame + offset])
+    
 def store_array_value():
 
     offset = get_operand()
@@ -646,6 +653,20 @@ def store_array_value():
         memory[current_frame + offset + i] = memory[element_ptr + i]
     
     _free_stack_space(size + index_size)
+
+def store_array_byte_value():
+
+    offset = get_operand()
+    
+    element_ptr = stack_pointer - 1
+    index_ptr = element_ptr - 1
+    
+    index = memory[index_ptr]
+    
+    offset = offset + index
+    memory[current_frame + offset] = memory[element_ptr]
+    
+    _free_stack_space(2)
 
 def end():
 
@@ -699,7 +720,9 @@ lookup = {
     opcodes.sys_call: sys_call,
     opcodes.get_variable_address: get_variable_address,
     opcodes.load_array_value: load_array_value,
+    opcodes.load_array_byte_value: load_array_byte_value,
     opcodes.store_array_value: store_array_value,
+    opcodes.store_array_byte_value: store_array_byte_value,
     opcodes.end: end
     }
 
