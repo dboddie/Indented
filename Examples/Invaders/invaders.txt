@@ -57,21 +57,25 @@ while True
     new_y = y
     moved = False
 
-    if check_key(-98) and (x > 2)
-        new_x = x - 1
-        moved = True
+    if check_key(-98)
+        if x > 2
+            new_x = x - 1
+            moved = True
+    else
+        if check_key(-67)
+            if x < 20
+                new_x = x + 1
+                moved = True
 
-    if check_key(-67) and (x < 20)
-        new_x = x + 1
-        moved = True
-
-    if check_key(-73) and (y > 3)
-        new_y = y - 1
-        moved = True
-
-    if check_key(-105) and (y < 60)
-        new_y = y + 1
-        moved = True
+    if check_key(-73)
+        if y > 3
+            new_y = y - 1
+            moved = True
+    else
+        if check_key(-105)
+            if y < 60
+                new_y = y + 1
+                moved = True
 
     if check_key(-74)
         if (bullets_y[bullet] == 255) and (fired == 0)
