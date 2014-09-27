@@ -36,13 +36,14 @@ load()
 mode(5)
 cursor_off()
 
-x = 1
+x = 2
 y = 31
 _call(0x4000 1 x y)
 
 bullets_x = "\xff\xff\xff"
 bullets_y = "\xff\xff\xff"
 bullet = 0
+fired = 0
 
 while True
 
@@ -50,21 +51,33 @@ while True
     new_y = y
     moved = False
 
+    if check_key(-98) and (x > 2)
+        new_x = x - 1
+        moved = True
+
+    if check_key(-67) and (x < 20)
+        new_x = x + 1
+        moved = True
+
     if check_key(-73) and (y > 3)
         new_y = y - 1
         moved = True
 
-    if check_key(-105) and (y < 61)
+    if check_key(-105) and (y < 60)
         new_y = y + 1
         moved = True
 
-    if check_key(-74) and (y < 61)
-        if bullets_y[bullet] == 255
+    if check_key(-74)
+        if (bullets_y[bullet] == 255) and (fired == 0)
             bullets_y[bullet] = y
             bullets_x[bullet] = x + 2
+            _call(0x4000 2 x + 2 y)
+            
             bullet = bullet + 1
             if bullet == 3
                 bullet = 0
+            
+            fired = 10
 
     vsync()
     if moved
@@ -76,13 +89,16 @@ while True
     i = 0
     while i < 3
         by = bullets_y[i]
-        bx = bullets_x[i]
         if by != 255
+            bx = bullets_x[i]
             _call(0x4000 0 bx by)
             bx = bx + 2
-            if bx < 40
+            if bx < 39
                 _call(0x4000 2 bx by)
                 bullets_x[i] = bx
             else
                 bullets_y[i] = 255
         i = i + 1
+    
+    if fired > 0
+        fired = fired - 1
