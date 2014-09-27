@@ -125,8 +125,6 @@ def generate_add(size):
     global code
     if size > 1:
         code += [add, size]
-    elif code[-2] == load_byte:
-        code[-2] = add_byte_constant
     else:
         code += [add_byte]
 
@@ -135,8 +133,6 @@ def generate_subtract(size):
     global code
     if size > 1:
         code += [subtract, size]
-    elif code[-2] == load_byte:
-        code[-2] = subtract_byte_constant
     else:
         code += [subtract_byte]
 
@@ -173,7 +169,10 @@ def generate_minus(size):
 def generate_bitwise_and(size1, size2):
 
     global code
-    code += [bitwise_and, size1, size2]
+    if size1 > 1 or size2 > 1:
+        code += [bitwise_and, size1, size2]
+    else:
+        code += [bitwise_and_byte]
 
 def generate_left_shift(size):
 

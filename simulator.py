@@ -200,10 +200,6 @@ def add_byte():
 
     push_byte((pop_byte() + pop_byte()) & 0xff)
 
-def add_byte_constant():
-
-    push_byte((pop_byte() + get_operand()) & 0xff)
-
 def subtract():
 
     size = get_operand()
@@ -224,11 +220,7 @@ def subtract():
 def subtract_byte():
 
     v = pop_byte()
-    push_byte((v - pop_byte()) % 256)
-
-def subtract_byte_constant():
-
-    push_byte((pop_byte() - get_operand()) % 256)
+    push_byte((pop_byte() - v) % 256)
 
 def multiply():
 
@@ -321,6 +313,10 @@ def bitwise_and():
         i += 1
     
     _free_stack_space(size1)
+
+def bitwise_and_byte():
+
+    push_byte(pop_byte() & pop_byte())
 
 def left_shift():
 
@@ -685,10 +681,8 @@ lookup = {
     opcodes.compare_greater_than_byte: compare_greater_than_byte,
     opcodes.add: add,
     opcodes.add_byte: add_byte,
-    opcodes.add_byte_constant: add_byte_constant,
     opcodes.subtract: subtract,
     opcodes.subtract_byte: subtract_byte,
-    opcodes.subtract_byte_constant: subtract_byte_constant,
     opcodes.multiply: multiply,
     opcodes.divide: divide,
     opcodes.logical_and: logical_and,
@@ -696,6 +690,7 @@ lookup = {
     opcodes.logical_not: logical_not,
     opcodes.minus: minus,
     opcodes.bitwise_and: bitwise_and,
+    opcodes.bitwise_and_byte: bitwise_and_byte,
     opcodes.left_shift: left_shift,
     opcodes.right_shift: right_shift,
     opcodes.branch_forward_if_false: branch_forward_if_false,

@@ -29,10 +29,8 @@ compare_greater_than, \
 compare_greater_than_byte, \
 add, \
 add_byte, \
-add_byte_constant, \
 subtract, \
 subtract_byte, \
-subtract_byte_constant, \
 multiply, \
 divide, \
 logical_and, \
@@ -40,6 +38,7 @@ logical_or, \
 logical_not, \
 minus, \
 bitwise_and, \
+bitwise_and_byte, \
 left_shift, \
 right_shift, \
 branch_forward_if_false, \
@@ -67,7 +66,7 @@ load_array_value, \
 load_array_byte_value, \
 store_array_value, \
 store_array_byte_value, \
-end = range(256, 256 + 51)
+end = range(256, 256 + 50)
 
 address_size = 2
 branch_size = 1

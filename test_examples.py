@@ -25,6 +25,7 @@ import compiler, generator, opcodes, simulator
 expected_results = {
     "address-1.txt": [109, 121, 102, 105, 108, 101, 127, 14],
     "and-1.txt": [0, 31],
+    "and-2.txt": [255, 31, 31, 63, 63],
     "assignment-1.txt": [1],
     "assignment-2.txt": [1, 1],
     "assignment-3.txt": [3],

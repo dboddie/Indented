@@ -56,10 +56,8 @@ lookup_low:
 .byte <[compare_greater_than_byte - 1]
 .byte <[add - 1]
 .byte <[add_byte - 1]
-.byte <[add_byte_constant - 1]
 .byte <[subtract - 1]
 .byte <[subtract_byte - 1]
-.byte <[subtract_byte_constant - 1]
 .byte <[multiply - 1]
 .byte <[divide - 1]
 .byte <[logical_and - 1]
@@ -67,6 +65,7 @@ lookup_low:
 .byte <[logical_not - 1]
 .byte <[minus - 1]
 .byte <[bitwise_and - 1]
+.byte <[bitwise_and_byte - 1]
 .byte <[left_shift - 1]
 .byte <[right_shift - 1]
 .byte <[branch_forward_if_false - 1]
@@ -109,10 +108,8 @@ lookup_high:
 .byte >[compare_greater_than_byte - 1]
 .byte >[add - 1]
 .byte >[add_byte - 1]
-.byte >[add_byte_constant - 1]
 .byte >[subtract - 1]
 .byte >[subtract_byte - 1]
-.byte >[subtract_byte_constant - 1]
 .byte >[multiply - 1]
 .byte >[divide - 1]
 .byte >[logical_and - 1]
@@ -120,6 +117,7 @@ lookup_high:
 .byte >[logical_not - 1]
 .byte >[minus - 1]
 .byte >[bitwise_and - 1]
+.byte >[bitwise_and_byte - 1]
 .byte >[left_shift - 1]
 .byte >[right_shift - 1]
 .byte >[branch_forward_if_false - 1]
@@ -613,15 +611,6 @@ add_byte:
     jsr _push_byte
     jmp next_instruction
 
-add_byte_constant:
-
-    jsr _pop_byte
-    sta temp
-    jsr _get_operand
-    adc temp
-    jsr _push_byte
-    jmp next_instruction
-
 subtract:
 
     ;lda #83
@@ -656,17 +645,6 @@ subtract_byte:
 
     jsr _pop_bytes
     stx temp
-    sec
-    sbc temp
-    clc
-    jsr _push_byte
-    jmp next_instruction
-
-subtract_byte_constant:
-
-    jsr _get_operand
-    sta temp
-    jsr _pop_byte
     sec
     sbc temp
     clc
@@ -736,6 +714,14 @@ bitwise_and:
 
     lda size                ; size1
     jsr _free_stack_space
+    jmp next_instruction
+
+bitwise_and_byte:
+
+    jsr _pop_bytes
+    stx temp
+    and temp
+    jsr _push_byte
     jmp next_instruction
 
 left_shift:
