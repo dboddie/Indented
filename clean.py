@@ -45,12 +45,18 @@ if __name__ == "__main__":
             if len(pieces) == 4:
                 source, obj, load, exec_ = line.strip().split()
                 path = os.path.join(manifest_dir, obj)
-                print "Removing", path
-                os.remove(path)
+                if os.path.exists(path):
+                    print "Removing", path
+                    os.remove(path)
     
     if os.path.exists("CODE"):
         print "Removing CODE"
         os.remove("CODE")
+    
+    program_oph = os.path.join("6502", "program.oph")
+    if os.path.exists(program_oph):
+        print "Removing", program_oph
+        os.remove(program_oph)
     
     # Exit
     sys.exit()
