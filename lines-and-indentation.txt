@@ -1,6 +1,9 @@
 Overview
 --------
 
+This document is incomplete. See the examples in the Examples directory for
+an overview of the syntax used for the language.
+
 Statements are parsed and compiled immediately, with statements separated by
 newlines and possibly other symbols like commas, semicolons or colons.
 
