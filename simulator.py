@@ -200,6 +200,10 @@ def add_byte():
 
     push_byte((pop_byte() + pop_byte()) & 0xff)
 
+def add_byte_constant():
+
+    push_byte((pop_byte() + get_operand()) & 0xff)
+
 def subtract():
 
     size = get_operand()
@@ -216,6 +220,15 @@ def subtract():
         i += 1
     
     _free_stack_space(size)
+
+def subtract_byte():
+
+    v = pop_byte()
+    push_byte((v - pop_byte()) % 256)
+
+def subtract_byte_constant():
+
+    push_byte((pop_byte() - get_operand()) % 256)
 
 def multiply():
 
@@ -419,6 +432,15 @@ def load_local():
     
     stack_pointer += size
 
+def load_local_byte():
+
+    global stack_pointer
+    offset = get_operand()
+    
+    memory[stack_pointer] = memory[current_frame + offset]
+    
+    stack_pointer += 1
+
 def load_global():
 
     offset = get_operand()
@@ -436,6 +458,15 @@ def assign_local():
         i += 1
     
     stack_pointer -= size
+
+def assign_local_byte():
+
+    global stack_pointer
+    offset = get_operand()
+    
+    memory[current_frame + offset] = memory[stack_pointer - 1]
+    
+    stack_pointer -= 1
 
 def function_return():
 
@@ -633,7 +664,10 @@ lookup = {
     opcodes.compare_greater_than_byte: compare_greater_than_byte,
     opcodes.add: add,
     opcodes.add_byte: add_byte,
+    opcodes.add_byte_constant: add_byte_constant,
     opcodes.subtract: subtract,
+    opcodes.subtract_byte: subtract_byte,
+    opcodes.subtract_byte_constant: subtract_byte_constant,
     opcodes.multiply: multiply,
     opcodes.divide: divide,
     opcodes.logical_and: logical_and,
@@ -650,8 +684,10 @@ lookup = {
     opcodes.jump_if_false: jump_if_false,
     opcodes.jump: jump,
     opcodes.load_local: load_local,
+    opcodes.load_local_byte: load_local_byte,
     opcodes.load_global: load_global,
     opcodes.assign_local: assign_local,
+    opcodes.assign_local_byte: assign_local_byte,
     opcodes.function_return: function_return,
     opcodes.function_call: function_call,
     opcodes.load_current_frame_address: load_current_frame_address,

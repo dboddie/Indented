@@ -29,7 +29,10 @@ compare_greater_than, \
 compare_greater_than_byte, \
 add, \
 add_byte, \
+add_byte_constant, \
 subtract, \
+subtract_byte, \
+subtract_byte_constant, \
 multiply, \
 divide, \
 logical_and, \
@@ -46,8 +49,10 @@ branch_backward, \
 jump_if_false, \
 jump, \
 load_local, \
+load_local_byte, \
 load_global, \
 assign_local, \
+assign_local_byte, \
 function_return, \
 function_call, \
 load_current_frame_address, \
@@ -60,7 +65,7 @@ sys_call, \
 get_variable_address, \
 load_array_value, \
 store_array_value, \
-end = range(0, 44)
+end = range(256, 256 + 49)
 
 address_size = 2
 branch_size = 1

@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import os
+
 def read_sprite(lines, shifted = False):
 
     data = ""
@@ -89,4 +91,5 @@ data = ""
 for sprite in sprites:
     data += read_sprite(sprite)
 
-open("SPRITES", "w").write(data)
+this_dir = os.path.split(__file__)[0]
+open(os.path.join(this_dir, "SPRITES"), "w").write(data)

@@ -63,7 +63,7 @@ if __name__ == "__main__":
     load_address = int(load_address_string[1:], 16)
     
     # Calculate the program address to enable linking to occur.
-    program_address = load_address + (opcodes.end + 1) * 2
+    program_address = load_address + (opcodes.end - 256 + 1) * 2
     
     try:
         start_address = compiler.parse_program(stream, program_address)

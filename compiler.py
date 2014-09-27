@@ -1333,9 +1333,7 @@ def save_opcodes_oph(file_name, start_address):
     while i < len(generator.code):
         opcodes = []
         for opcode in generator.code[i:i + 24]:
-            if opcode < 0:
-                opcode = 256 + opcode
-            opcodes.append(opcode)
+            opcodes.append(opcode & 0xff)
         f.write(".byte " + ", ".join(map(str, opcodes)) + "\n")
         i += 24
     
@@ -1346,7 +1344,7 @@ def save_opcodes_oph(file_name, start_address):
 def save_opcodes(file_name):
 
     f = open(file_name, "wb")
-    f.write("".join(map(chr, generator.code)))
+    f.write("".join(map(chr, map(lambda x: x & 0xff, generator.code))))
     f.close()
 
 
@@ -1360,7 +1358,7 @@ if __name__ == "__main__":
     run = sys.argv[1] == "-r"
     save = sys.argv[1] == "-s"
     
-    load_address = 0x0e00 + (opcodes.end + 1) * 2
+    load_address = 0x0e00 + (opcodes.end - 256 + 1) * 2
     
     try:
         start_address = parse_program(stream, load_address)
@@ -1375,13 +1373,21 @@ if __name__ == "__main__":
     pprint.pprint(local_variables)
     
     print "Main code:"
-    pprint.pprint(generator.code)
-    
-    print "Main code:"
     addr = load_address
     for v in generator.code:
         print "%04x: %03i (%02x)" % (addr, v, v)
         addr += 1
+    
+    print "Opcode usage:"
+    d = {}
+    for v in generator.code:
+        if v > 255:
+            d[v] = d.get(v, 0) + 1
+    
+    freq = map(lambda (k, v): (v, k), d.items())
+    freq.sort()
+    for v, k in freq:
+        print simulator.lookup[k], v
     
     if run:
         print "Loading"

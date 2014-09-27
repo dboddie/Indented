@@ -56,7 +56,10 @@ lookup_low:
 .byte <[compare_greater_than_byte - 1]
 .byte <[add - 1]
 .byte <[add_byte - 1]
+.byte <[add_byte_constant - 1]
 .byte <[subtract - 1]
+.byte <[subtract_byte - 1]
+.byte <[subtract_byte_constant - 1]
 .byte <[multiply - 1]
 .byte <[divide - 1]
 .byte <[logical_and - 1]
@@ -73,8 +76,10 @@ lookup_low:
 .byte <[jump_if_false - 1]
 .byte <[jump - 1]
 .byte <[load_local - 1]
+.byte <[load_local_byte - 1]
 .byte <[load_global - 1]
 .byte <[assign_local - 1]
+.byte <[assign_local_byte - 1]
 .byte <[function_return - 1]
 .byte <[function_call - 1]
 .byte <[load_current_frame_address - 1]
@@ -102,7 +107,10 @@ lookup_high:
 .byte >[compare_greater_than_byte - 1]
 .byte >[add - 1]
 .byte >[add_byte - 1]
+.byte >[add_byte_constant - 1]
 .byte >[subtract - 1]
+.byte >[subtract_byte - 1]
+.byte >[subtract_byte_constant - 1]
 .byte >[multiply - 1]
 .byte >[divide - 1]
 .byte >[logical_and - 1]
@@ -119,8 +127,10 @@ lookup_high:
 .byte >[jump_if_false - 1]
 .byte >[jump - 1]
 .byte >[load_local - 1]
+.byte >[load_local_byte - 1]
 .byte >[load_global - 1]
 .byte >[assign_local - 1]
+.byte >[assign_local_byte - 1]
 .byte >[function_return - 1]
 .byte >[function_call - 1]
 .byte >[load_current_frame_address - 1]
@@ -546,6 +556,15 @@ add_byte:
     jsr _push_byte
     jmp next_instruction
 
+add_byte_constant:
+
+    jsr _pop_byte
+    sta temp
+    jsr _get_operand
+    adc temp
+    jsr _push_byte
+    jmp next_instruction
+
 subtract:
 
     ;lda #83
@@ -574,6 +593,28 @@ subtract:
 
     lda size
     jsr _free_stack_space
+    jmp next_instruction
+
+subtract_byte:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    sec
+    sbc temp
+    clc
+    jsr _push_byte
+    jmp next_instruction
+
+subtract_byte_constant:
+
+    jsr _get_operand
+    sta temp
+    jsr _pop_byte
+    sec
+    sbc temp
+    clc
+    jsr _push_byte
     jmp next_instruction
 
 multiply:
@@ -920,6 +961,22 @@ load_local:
     jsr _allocate_stack_space
     jmp next_instruction
 
+load_local_byte:
+
+    jsr _get_operand
+
+    adc current_frame
+    sta ptr1
+    lda [current_frame + 1]
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    ldy #0
+    lda (ptr1),y
+    jsr _push_byte
+    jmp next_instruction
+
 load_global:
 
     jsr _get_operand
@@ -958,6 +1015,22 @@ assign_local:
     clc
     lda size
     jsr _free_stack_space
+    jmp next_instruction
+
+assign_local_byte:
+
+    jsr _get_operand
+
+    adc current_frame
+    sta ptr1
+    lda [current_frame + 1]
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    jsr _pop_byte
+    ldy #0
+    sta (ptr1),y
     jmp next_instruction
 
 function_return:

@@ -125,13 +125,20 @@ def generate_add(size):
     global code
     if size > 1:
         code += [add, size]
+    elif code[-2] == load_byte:
+        code[-2] = add_byte_constant
     else:
         code += [add_byte]
 
 def generate_subtract(size):
 
     global code
-    code += [subtract, size]
+    if size > 1:
+        code += [subtract, size]
+    elif code[-2] == load_byte:
+        code[-2] = subtract_byte_constant
+    else:
+        code += [subtract_byte]
 
 def generate_multiply(size):
 
@@ -233,7 +240,10 @@ def generate_branch(address):
 def generate_load_local(offset, size):
 
     global code
-    code += [load_local, offset, size]
+    if size > 1:
+        code += [load_local, offset, size]
+    else:
+        code += [load_local_byte, offset]
 
 def generate_load_global(offset, size):
 
@@ -243,7 +253,10 @@ def generate_load_global(offset, size):
 def generate_assign_local(offset, size):
 
     global code
-    code += [assign_local, offset, size]
+    if size > 1:
+        code += [assign_local, offset, size]
+    else:
+        code += [assign_local_byte, offset]
 
 def generate_assign_global(offset, size):
 
