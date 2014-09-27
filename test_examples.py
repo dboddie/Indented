@@ -126,25 +126,25 @@ if __name__ == "__main__":
         compiler.tokeniser.reset()
         reload(compiler)
         reload(generator)
+        load_address = 0x0e00 + opcodes.end + 2
         
         try:
-            compiler.parse_program(stream)
+            start_address = compiler.parse_program(stream, load_address)
         except SyntaxError as exception:
             if name.endswith("fail.txt"):
                 print "failed as expected"
                 continue
             else:
                 print "failed", str(exception)
+                sys.exit(1)
         else:
             print "passed"
         
         reload(simulator)
-        load_address = 0x0e00 + opcodes.end + 2
         
-        generator.link(compiler.functions, load_address)
         simulator.load(generator.code, load_address)
         
-        result = simulator.run(step = False, verbose = False)
+        result = simulator.run(start_address, step = False, verbose = False)
         try:
             expected = expected_results[name]
         except KeyError:

@@ -319,14 +319,6 @@ def branch_forward_if_false():
     if pop_byte() == false:
         program_counter += offset - 1 - branch_size
 
-def branch_forward_if_true():
-
-    global program_counter
-    offset = get_operand()
-    
-    if pop_byte() == true:
-        program_counter += offset - 1 - branch_size
-
 def branch_forward():
 
     global program_counter
@@ -342,20 +334,41 @@ def branch_backward_if_false():
     if pop_byte() == false:
         program_counter -= offset + 1 + branch_size
 
-def branch_backward_if_true():
-
-    global program_counter
-    offset = get_operand()
-    
-    if pop_byte() == true:
-        program_counter -= offset + 1 + branch_size
-
 def branch_backward():
 
     global program_counter
     offset = get_operand()
     
     program_counter -= offset + 1 + branch_size
+
+def jump():
+
+    global program_counter
+    
+    address = 0
+    i = 0
+    s = 0
+    while i < address_size:
+        address = address | (get_operand() << s)
+        i += 1
+        s += 8
+    
+    program_counter = address
+
+def jump_if_false():
+
+    global program_counter
+    
+    address = 0
+    i = 0
+    s = 0
+    while i < address_size:
+        address = address | (get_operand() << s)
+        i += 1
+        s += 8
+    
+    if pop_byte() == false:
+        program_counter = address
 
 def load_local():
 
@@ -589,11 +602,11 @@ lookup = {
     opcodes.left_shift: left_shift,
     opcodes.right_shift: right_shift,
     opcodes.branch_forward_if_false: branch_forward_if_false,
-    opcodes.branch_forward_if_true: branch_forward_if_true,
     opcodes.branch_forward: branch_forward,
     opcodes.branch_backward_if_false: branch_backward_if_false,
-    opcodes.branch_backward_if_true: branch_backward_if_true,
     opcodes.branch_backward: branch_backward,
+    opcodes.jump_if_false: jump_if_false,
+    opcodes.jump: jump,
     opcodes.load_local: load_local,
     opcodes.load_global: load_global,
     opcodes.assign_local: assign_local,
@@ -624,20 +637,22 @@ def load(code, address):
     end = address + len(code)
     memory[address:end] = code
     
-    program_counter = address
     call_stack_base = call_stack_pointer = end
     stack_base = current_frame = stack_pointer = end + 16 * address_size
 
-def run(step = True, verbose = True):
+def run(start_address, step = True, verbose = True):
 
     global program_counter, stack_pointer, sys_call_prompt
+    
+    program_counter = start_address
     sys_call_prompt = step
     
     while True:
     
+        instruction_address = program_counter
         instruction = lookup[get_instruction()]
         if verbose:
-            print program_counter, instruction
+            print "%04x" % instruction_address, instruction
         if instruction == end:
             break
         instruction()

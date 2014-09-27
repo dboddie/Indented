@@ -295,7 +295,7 @@ def total_variable_size(variables):
 def find_function(token):
 
     index = 0
-    for name, parameters, variables, code, rsize, return_array in functions:
+    for name, parameters, variables, address, rsize, return_array in functions:
         if name == token:
             return index
         index += 1
@@ -305,7 +305,7 @@ def find_function(token):
 def function_address(token):
 
     address = 0
-    for name, parameters, variables, code, rsize, return_array in functions:
+    for name, parameters, variables, address, rsize, return_array in functions:
         if name == token:
             return address
         address += len(code)
@@ -590,10 +590,17 @@ def parse_definition(stream):
                                array_types.get(type_token, types[type_token]),
                                type_token in array_types))
         
+        # Write code to handle entry into the function, passing a placeholder
+        # value for the space required for local variables.
+        total_param_size = total_variable_size(parameters)
+        enter_address = len(generator.code)
+        generator.generate_enter_frame(total_param_size, 0)
+        
         # Tentatively add the function to the list of definitions with the
         # format:
-        # <name> <parameters> <local variables> <code> <return size> <return array>
-        functions.append([function_name, parameters, local_variables[:], None, 0, False])
+        # <name> <parameters> <local variables> <address> <return size> <return array>
+        functions.append([function_name, parameters, local_variables[:],
+                          generator.base_address + enter_address, 0, False])
         
         # Indicate that we are parsing a function and reset the default return
         # size.
@@ -619,33 +626,20 @@ def parse_definition(stream):
         # child frame to the top of the parent frame, leaving the following:
         # <local vars> <return value>
         
-        total_param_size = total_variable_size(parameters)
         total_var_size = total_variable_size(local_variables) - total_param_size
+        
+        # The return details are filled in by the parse_return function.
         return_size, return_array = functions[-1][-2:]
+        
         generator.generate_function_tidy(total_var_size + total_param_size,
                                          return_size)
         
         generator.generate_return()
         
-        # Append the function details to the list of definitions, taking a copy
-        # of the local variables.
-        code = generator.code[code_start:]
-        generator.discard_code(code_start)
-        
-        # Write code to handle entry into the function. We can only do this
-        # after the body has been generated because we don't know the parameter
+        # Fill in the size of the local variables. We can only do this after
+        # the body has been generated because we don't know the sizes of the
         # types beforehand.
-        
-        generator.generate_enter_frame(total_param_size, total_var_size)
-        
-        # Append the generated code to the function's code.
-        code = generator.code[code_start:] + code
-        generator.discard_code(code_start)
-        
-        # Replace the placeholder definition with the full one.
-        functions.pop()
-        functions.append((function_name, parameters, local_variables[:], code,
-                          return_size, return_array))
+        generator.code[enter_address + 3] = total_var_size
         
         # Restore the list of local variables.
         local_variables[:] = global_variables
@@ -717,7 +711,7 @@ def parse_function_call(stream):
     if token != tokeniser.arguments_begin_token:
         raise SyntaxError, "Function arguments must follow '(' at line %i.\n" % tokeniser.line
     
-    function_name, parameters, variables, code, rsize, return_array = functions[index]
+    function_name, parameters, variables, address, rsize, return_array = functions[index]
     
     # Generate code to record the address of the current frame in a frame base
     # address register, pushing the previous frame base address onto the stack
@@ -762,7 +756,7 @@ def parse_function_call(stream):
     #    <local vars> <parent frame addr> <args> <local vars> <return value>
     # -> <local vars> <return value>
     
-    generator.generate_function_call(function_name)
+    generator.generate_function_call(address)
     
     # Record the size of the return value to ensure that it is assigned or
     # discarded as necessary.
@@ -982,16 +976,32 @@ def parse_operation(stream):
     
     return True
 
-def parse_program(stream):
+def parse_program(stream, base_address):
 
+    generator.base_address = base_address
+    
+    top = len(used)
+    
+    while tokeniser.at_eof == False:
+    
+        if parse_definition(stream):
+            discard_tokens()
+            debug_print("definition")
+        else:
+            put_tokens(top)
+            break
+    
+    # Insert code to reserve space for variables.
+    start_address = len(generator.code)
+    generator.generate_allocate_stack_space(0)
+    
     while tokeniser.at_eof == False:
     
         if parse_control(stream):
             discard_tokens()
             debug_print("control")
         elif parse_definition(stream):
-            discard_tokens()
-            debug_print("definition")
+            raise SyntaxError, "Cannot mix function definitions and code at line %i." % tokeniser.line
         elif parse_statement(stream):
             discard_tokens()
             debug_print("statement")
@@ -1004,11 +1014,10 @@ def parse_program(stream):
     
     generator.generate_end()
     
-    # Insert code to reserve space for variables.
-    main_code = generator.code[:]
-    generator.discard_code(0)
-    generator.generate_allocate_stack_space(total_variable_size(local_variables))
-    generator.code += main_code
+    # Fill in the size of the local variable space.
+    generator.code[start_address + 1] = total_variable_size(local_variables)
+    
+    return generator.base_address + start_address
 
 def parse_return(stream):
 
@@ -1317,7 +1326,7 @@ def parse_variable(stream):
     put_tokens(top)
     return False
 
-def save_opcodes_oph(file_name):
+def save_opcodes_oph(file_name, start_address):
 
     f = open(file_name, "w")
     i = 0
@@ -1329,6 +1338,9 @@ def save_opcodes_oph(file_name):
             opcodes.append(opcode)
         f.write(".byte " + ", ".join(map(str, opcodes)) + "\n")
         i += 24
+    
+    f.write(".alias program_start_low  $%02x\n" % (start_address & 0xff))
+    f.write(".alias program_start_high $%02x\n" % (start_address >> 8))
     f.close()
 
 def save_opcodes(file_name):
@@ -1351,7 +1363,7 @@ if __name__ == "__main__":
     load_address = 0x0e00 + opcodes.end + 2
     
     try:
-        parse_program(stream)
+        start_address = parse_program(stream, load_address)
     except SyntaxError as exception:
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
@@ -1365,21 +1377,17 @@ if __name__ == "__main__":
     print "Main code:"
     pprint.pprint(generator.code)
     
-    print "Linking"
-    try:
-        generator.link(functions, load_address)
-    except KeyError as exception:
-        sys.stderr.write(str(exception) + "\n")
-        sys.exit(1)
-    
     print "Main code:"
-    pprint.pprint(generator.code)
+    addr = load_address
+    for v in generator.code:
+        print "%04x: %03i (%02x)" % (addr, v, v)
+        addr += 1
     
     if run:
         print "Loading"
         simulator.load(generator.code, load_address)
         print "Running"
-        print simulator.run()
+        print simulator.run(start_address)
     
     if save:
-        save_opcodes_oph("6502/program.oph")
+        save_opcodes_oph("6502/program.oph", start_address)

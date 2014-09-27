@@ -66,18 +66,12 @@ if __name__ == "__main__":
     program_address = load_address + opcodes.end + 2
     
     try:
-        compiler.parse_program(stream)
+        start_address = compiler.parse_program(stream, program_address)
     except SyntaxError as exception:
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
     
-    try:
-        compiler.generator.link(compiler.functions, program_address)
-    except KeyError as exception:
-        sys.stderr.write(str(exception) + "\n")
-        sys.exit(1)
-    
-    compiler.save_opcodes_oph("6502/program.oph")
+    compiler.save_opcodes_oph("6502/program.oph", start_address)
     program_length = len(compiler.generator.code)
     print "Program is", program_length, "bytes long."
     

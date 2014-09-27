@@ -34,11 +34,11 @@ bitwise_and, \
 left_shift, \
 right_shift, \
 branch_forward_if_false, \
-branch_forward_if_true, \
 branch_forward, \
 branch_backward_if_false, \
-branch_backward_if_true, \
 branch_backward, \
+jump_if_false, \
+jump, \
 load_local, \
 load_global, \
 assign_local, \

@@ -23,6 +23,7 @@ from tokeniser import eof_token, read_token
 # Generated code
 
 code = []
+base_address = 0
 
 # Code maintenance functions
 
@@ -37,45 +38,14 @@ def fix_returns(code_start):
     while i < target:
         instruction = code[i]
         if instruction == "exit_function":
-            code[i] = branch_forward
-            offset = target - i
-            i += 1
-            code[i] = offset
-        i += 1
-
-def link(functions, base_address):
-
-    global code
-    
-    # The code for each function is appended to the main code.
-    # Use a dictionary to record this for now, but consider other data
-    # structures for other implementations.
-    index = {}
-    
-    for name, parameters, local_variables, fn_code, return_size, return_array in functions:
-    
-        index[name] = len(code)
-        code += fn_code
-    
-    i = 0
-    while i < len(code):
-    
-        instruction = code[i]
-        
-        if instruction == "function_call":
-        
-            # Adjust the opcode.
-            code[i] = function_call
-            
-            # Adjust the following address bytes to contain the address.
-            name = code[i + 1]
-            address = base_address + index[name]
+            code[i] = jump
+            address = base_address + target
             j = 0
             while j < address_size:
-                i += 1
-                code[i] = address & 0xff
+                code[i + j + 1] = address & 0xff
                 address = address >> 8
                 j += 1
+            i += j
         i += 1
 
 # Generation functions
@@ -189,37 +159,53 @@ def generate_if():
 
     global code
     offset = len(code)
-    code += [branch_forward_if_false, None]
+    code += [jump_if_false, None, None]
     return offset
 
 def generate_else():
 
     global code
     offset = len(code)
-    code += [branch_forward, None]
+    code += [jump, None, None]
     return offset
 
 def generate_while():
 
     global code
     offset = len(code)
-    code += [branch_forward_if_false, None]
+    code += [jump_if_false, None, None]
     return offset
 
 def generate_target(address):
 
     global code
-    offset = len(code) - address
-    code[address + 1] = offset
+    target = base_address + len(code)
+    i = 0
+    while i < address_size:
+        code[address + i + 1] = target & 0xff
+        target = target >> 8
+        i += 1
 
 def generate_branch(address):
 
     global code
     offset = address - len(code)
     if offset < 0:
-        code += [branch_backward, -offset]
+        if offset > -255:
+            code += [branch_backward, -offset]
+            return
     else:
-        code += [branch_forward, offset]
+        if offset <= 255:
+            code += [branch_forward, offset]
+            return
+    
+    code += [jump]
+    address += base_address
+    i = 0
+    while i < address_size:
+        code += [address & 0xff]
+        address = address >> 8
+        i += 1
 
 def generate_load_local(offset, size):
 
@@ -273,14 +259,17 @@ def generate_enter_frame(param_size, var_size):
     code += [store_stack_top_in_current_frame, param_size]
     
     # Allocate enough space for the local variables.
-    if var_size > 0:
-        code += [allocate_stack_space, var_size]
+    code += [allocate_stack_space, var_size]
 
-def generate_function_call(name):
+def generate_function_call(address):
 
     global code
-    code += ["function_call", name]
-    code += [0] * (address_size - 1)
+    code += [function_call]
+    i = 0
+    while i < address_size:
+        code += [address & 0xff]
+        address = address >> 8
+        i += 1
 
 def generate_function_tidy(total_size, return_size):
 
@@ -302,7 +291,7 @@ def generate_function_tidy(total_size, return_size):
 def generate_exit_function():
 
     global code
-    code += ["exit_function", None]
+    code += ["exit_function", None, None]
 
 def generate_system_call(total_args_size):
 

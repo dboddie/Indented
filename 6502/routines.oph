@@ -61,11 +61,11 @@ lookup:
 .byte <left_shift, >left_shift
 .byte <right_shift, >right_shift
 .byte <branch_forward_if_false, >branch_forward_if_false
-.byte <branch_forward_if_true, >branch_forward_if_true
 .byte <branch_forward, >branch_forward
 .byte <branch_backward_if_false, >branch_backward_if_false
-.byte <branch_backward_if_true, >branch_backward_if_true
 .byte <branch_backward, >branch_backward
+.byte <jump_if_false, >jump_if_false
+.byte <jump, >jump
 .byte <load_local, >load_local
 .byte <load_global, >load_global
 .byte <assign_local, >assign_local
@@ -94,9 +94,9 @@ run:
     lda #$0e
     sta instruction_high
 
-    lda #<program
+    lda #program_start_low
     sta program_counter
-    lda #>program
+    lda #program_start_high
     sta [program_counter + 1]
 
     lda #<stack
@@ -683,17 +683,6 @@ branch_forward_if_false:
     clc
     jmp next_instruction
 
-branch_forward_if_true:
-
-    jsr _get_operand
-    sta temp
-    
-    jsr _pop_byte
-    cmp #true
-    beq branch_forward_branch
-    clc
-    jmp next_instruction
-
 branch_forward:
 
     ;lda #70
@@ -729,17 +718,6 @@ branch_backward_if_false:
     clc
     jmp next_instruction
 
-branch_backward_if_true:
-
-    jsr _get_operand
-    sta temp
-    
-    jsr _pop_byte
-    cmp #true
-    beq branch_backward_branch
-    clc
-    jmp next_instruction
-
 branch_backward:
 
     ;lda #66
@@ -761,6 +739,44 @@ branch_backward:
     lda [program_counter + 1]
     sbc #0
     sta [program_counter + 1]
+    clc
+    jmp next_instruction
+
+jump:
+
+    ;lda #74
+    ;jsr $ffee
+
+    jsr _get_operand
+    pha
+    jsr _get_operand
+    sta [program_counter + 1]
+    pla
+    sta program_counter
+    jmp next_instruction
+
+jump_if_false:
+
+    ;lda #74
+    ;jsr $ffee
+    ;lda #102
+    ;jsr $ffee
+
+    jsr _get_operand
+    sta temp
+    jsr _get_operand
+    sta [temp + 1]
+
+    jsr _pop_byte
+    cmp #false
+    bne jump_if_false_exit
+
+    lda temp
+    sta program_counter
+    lda [temp + 1]
+    sta [program_counter + 1]
+
+    jump_if_false_exit:
     clc
     jmp next_instruction
 
