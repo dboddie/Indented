@@ -18,11 +18,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 load_number, \
+load_byte, \
 compare_equals, \
+compare_equals_byte, \
 compare_not_equals, \
+compare_not_equals_byte, \
 compare_less_than, \
+compare_less_than_byte, \
 compare_greater_than, \
+compare_greater_than_byte, \
 add, \
+add_byte, \
 subtract, \
 multiply, \
 divide, \
@@ -54,7 +60,7 @@ sys_call, \
 get_variable_address, \
 load_array_value, \
 store_array_value, \
-end = range(0, 76, 2)
+end = range(0, 44)
 
 address_size = 2
 branch_size = 1

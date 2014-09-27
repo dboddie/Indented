@@ -54,7 +54,11 @@ def generate_number(token, size, base):
 
     global code
     value = int(token, base)
-    code += [load_number, size]
+    if size > 1:
+        code += [load_number, size]
+    else:
+        code += [load_byte]
+    
     i = 0
     while i < size:
         code += [value & 0xff]
@@ -64,7 +68,11 @@ def generate_number(token, size, base):
 def generate_boolean(value, size):
 
     global code
-    code += [load_number, size]
+    if size > 1:
+        code += [load_number, size]
+    else:
+        code += [load_byte]
+    
     i = 0
     while i < size:
         code += [value & 0xff]
@@ -83,27 +91,42 @@ def generate_string(token, size):
 def generate_equals(size):
 
     global code
-    code += [compare_equals, size]
+    if size > 1:
+        code += [compare_equals, size]
+    else:
+        code += [compare_equals_byte]
 
 def generate_not_equals(size):
 
     global code
-    code += [compare_not_equals, size]
+    if size > 1:
+        code += [compare_not_equals, size]
+    else:
+        code += [compare_not_equals_byte]
 
 def generate_less_than(size):
 
     global code
-    code += [compare_less_than, size]
+    if size > 1:
+        code += [compare_less_than, size]
+    else:
+        code += [compare_less_than_byte]
 
 def generate_greater_than(size):
 
     global code
-    code += [compare_greater_than, size]
+    if size > 1:
+        code += [compare_greater_than, size]
+    else:
+        code += [compare_greater_than_byte]
 
 def generate_add(size):
 
     global code
-    code += [add, size]
+    if size > 1:
+        code += [add, size]
+    else:
+        code += [add_byte]
 
 def generate_subtract(size):
 

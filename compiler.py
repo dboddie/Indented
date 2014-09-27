@@ -1360,7 +1360,7 @@ if __name__ == "__main__":
     run = sys.argv[1] == "-r"
     save = sys.argv[1] == "-s"
     
-    load_address = 0x0e00 + opcodes.end + 2
+    load_address = 0x0e00 + (opcodes.end + 1) * 2
     
     try:
         start_address = parse_program(stream, load_address)

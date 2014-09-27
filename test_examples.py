@@ -126,7 +126,7 @@ if __name__ == "__main__":
         compiler.tokeniser.reset()
         reload(compiler)
         reload(generator)
-        load_address = 0x0e00 + opcodes.end + 2
+        load_address = 0x0e00 + (opcodes.end + 1) * 2
         
         try:
             start_address = compiler.parse_program(stream, load_address)

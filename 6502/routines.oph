@@ -25,8 +25,6 @@
 .alias offset               $79
 .alias ptr1                 $7a
 .alias ptr2                 $7c
-.alias instruction_low      $7e
-.alias instruction_high     $7f
 .alias temp                 $80
 
 .alias sys_A                $82
@@ -42,57 +40,106 @@
 
 ; The program is included before the routines. The value and call stacks follow
 ; the routines.
+; See http://6502.org/tutorials/6502opcodes.html for an explanation of how the
+; jump table is used.
 
-lookup:
-.byte <load_number, >load_number
-.byte <compare_equals, >compare_equals
-.byte <compare_not_equals, >compare_not_equals
-.byte <compare_less_than, >compare_less_than
-.byte <compare_greater_than, >compare_greater_than
-.byte <add, >add
-.byte <subtract, >subtract
-.byte <multiply, >multiply
-.byte <divide, >divide
-.byte <logical_and, >logical_and
-.byte <logical_or, >logical_or
-.byte <logical_not, >logical_not
-.byte <minus, >minus
-.byte <bitwise_and, >bitwise_and
-.byte <left_shift, >left_shift
-.byte <right_shift, >right_shift
-.byte <branch_forward_if_false, >branch_forward_if_false
-.byte <branch_forward, >branch_forward
-.byte <branch_backward_if_false, >branch_backward_if_false
-.byte <branch_backward, >branch_backward
-.byte <jump_if_false, >jump_if_false
-.byte <jump, >jump
-.byte <load_local, >load_local
-.byte <load_global, >load_global
-.byte <assign_local, >assign_local
-.byte <function_return, >function_return
-.byte <function_call, >function_call
-.byte <load_current_frame_address, >load_current_frame_address
-.byte <store_stack_top_in_current_frame, >store_stack_top_in_current_frame
-.byte <allocate_stack_space, >allocate_stack_space
-.byte <free_stack_space, >free_stack_space
-.byte <pop_current_frame_address, >pop_current_frame_address
-.byte <copy_value, >copy_value
-.byte <system_call, >system_call
-.byte <get_variable_address, >get_variable_address
-.byte <load_array_value, >load_array_value
-.byte <store_array_value, >store_array_value
-.byte <end, >end
+lookup_low:
+.byte <[load_number - 1]
+.byte <[load_byte - 1]
+.byte <[compare_equals - 1]
+.byte <[compare_equals_byte - 1]
+.byte <[compare_not_equals - 1]
+.byte <[compare_not_equals_byte - 1]
+.byte <[compare_less_than - 1]
+.byte <[compare_less_than_byte - 1]
+.byte <[compare_greater_than - 1]
+.byte <[compare_greater_than_byte - 1]
+.byte <[add - 1]
+.byte <[add_byte - 1]
+.byte <[subtract - 1]
+.byte <[multiply - 1]
+.byte <[divide - 1]
+.byte <[logical_and - 1]
+.byte <[logical_or - 1]
+.byte <[logical_not - 1]
+.byte <[minus - 1]
+.byte <[bitwise_and - 1]
+.byte <[left_shift - 1]
+.byte <[right_shift - 1]
+.byte <[branch_forward_if_false - 1]
+.byte <[branch_forward - 1]
+.byte <[branch_backward_if_false - 1]
+.byte <[branch_backward - 1]
+.byte <[jump_if_false - 1]
+.byte <[jump - 1]
+.byte <[load_local - 1]
+.byte <[load_global - 1]
+.byte <[assign_local - 1]
+.byte <[function_return - 1]
+.byte <[function_call - 1]
+.byte <[load_current_frame_address - 1]
+.byte <[store_stack_top_in_current_frame - 1]
+.byte <[allocate_stack_space - 1]
+.byte <[free_stack_space - 1]
+.byte <[pop_current_frame_address - 1]
+.byte <[copy_value - 1]
+.byte <[system_call - 1]
+.byte <[get_variable_address - 1]
+.byte <[load_array_value - 1]
+.byte <[store_array_value - 1]
+.byte <[end - 1]
+
+lookup_high:
+.byte >[load_number - 1]
+.byte >[load_byte - 1]
+.byte >[compare_equals - 1]
+.byte >[compare_equals_byte - 1]
+.byte >[compare_not_equals - 1]
+.byte >[compare_not_equals_byte - 1]
+.byte >[compare_less_than - 1]
+.byte >[compare_less_than_byte - 1]
+.byte >[compare_greater_than - 1]
+.byte >[compare_greater_than_byte - 1]
+.byte >[add - 1]
+.byte >[add_byte - 1]
+.byte >[subtract - 1]
+.byte >[multiply - 1]
+.byte >[divide - 1]
+.byte >[logical_and - 1]
+.byte >[logical_or - 1]
+.byte >[logical_not - 1]
+.byte >[minus - 1]
+.byte >[bitwise_and - 1]
+.byte >[left_shift - 1]
+.byte >[right_shift - 1]
+.byte >[branch_forward_if_false - 1]
+.byte >[branch_forward - 1]
+.byte >[branch_backward_if_false - 1]
+.byte >[branch_backward - 1]
+.byte >[jump_if_false - 1]
+.byte >[jump - 1]
+.byte >[load_local - 1]
+.byte >[load_global - 1]
+.byte >[assign_local - 1]
+.byte >[function_return - 1]
+.byte >[function_call - 1]
+.byte >[load_current_frame_address - 1]
+.byte >[store_stack_top_in_current_frame - 1]
+.byte >[allocate_stack_space - 1]
+.byte >[free_stack_space - 1]
+.byte >[pop_current_frame_address - 1]
+.byte >[copy_value - 1]
+.byte >[system_call - 1]
+.byte >[get_variable_address - 1]
+.byte >[load_array_value - 1]
+.byte >[store_array_value - 1]
+.byte >[end - 1]
 
 program:
 
 .include "program.oph"
 
 run:
-
-    ; All the addresses of the routines should be in the same page, so we only
-    ; need to set the high byte once.
-    lda #$0e
-    sta instruction_high
 
     lda #program_start_low
     sta program_counter
@@ -119,18 +166,15 @@ run:
     ; The opcode is used as the low byte of the address into the lookup table.
     ; Copy this byte into the low byte of the instruction address register.
     jsr _get_instruction
-    sta instruction_low         ; Store the low byte of the lookup table entry
-                                ; address.
-
-    ldy #0
-    lda (instruction_low),y     ; Load the low byte of the routine address.
-    sta temp                    ; Store the address in a fixed address.
-    iny
-    lda (instruction_low),y     ; Load the high byte of the routine address.
-    sta [temp + 1]              ; Store the address in a fixed address.
+    tax
+    
+    lda lookup_high,x           ; Load the high byte of the routine address.
+    pha                         ; Store the address in a fixed address.
+    lda lookup_low,x            ; Load the low byte of the routine address.
+    pha                         ; Store the address in a fixed address.
 
     ; Jump to the address held by the temporary address.
-    jmp (temp)
+    rts
 
 _push_byte:  ; A=value
 
@@ -227,6 +271,12 @@ load_number:
 
     load_number_exit:
     clc
+    jmp next_instruction
+
+load_byte:
+
+    jsr _get_operand
+    jsr _push_byte
     jmp next_instruction
 
 _set_ptr2:  ; ptr2 = stack_pointer - size
@@ -409,6 +459,55 @@ compare_greater_than:
     jsr _push_byte
     jmp next_instruction
 
+compare_equals_byte:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    cmp temp
+    beq compare_returns_true
+    bne compare_returns_false
+
+compare_not_equals_byte:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    cmp temp
+    bne compare_returns_true
+    beq compare_returns_false
+
+compare_less_than_byte:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    cmp temp
+    bcc compare_returns_true
+    bcs compare_returns_false
+
+compare_greater_than_byte:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    cmp temp
+    bcc compare_returns_false
+    beq compare_returns_false
+    bcs compare_returns_true
+
+compare_returns_true:
+
+    lda #true
+    jsr _push_byte
+    jmp next_instruction
+
+compare_returns_false:
+
+    lda #false
+    jsr _push_byte
+    jmp next_instruction
+
 add:
 
     ;lda #43
@@ -436,6 +535,15 @@ add:
 
     lda size
     jsr _free_stack_space
+    jmp next_instruction
+
+add_byte:
+
+    jsr _pop_byte
+    sta temp
+    jsr _pop_byte
+    adc temp
+    jsr _push_byte
     jmp next_instruction
 
 subtract:

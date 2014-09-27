@@ -45,6 +45,12 @@ bullets_y = "\xff\xff\xff"
 bullet = 0
 fired = 0
 
+enemies_x = "\xff\xff\xff\xff\xff\xff\xff\xff"
+enemies_y = "\xff\xff\xff\xff\xff\xff\xff\xff"
+enemies_counter = 10
+next_enemy = 0
+move_enemy = 0
+
 while True
 
     new_x = x
@@ -85,7 +91,7 @@ while True
         _call(0x4000 1 new_x new_y)
         x = new_x
         y = new_y
-    
+
     i = 0
     while i < 3
         by = bullets_y[i]
@@ -99,6 +105,34 @@ while True
             else
                 bullets_y[i] = 255
         i = i + 1
-    
+
     if fired > 0
         fired = fired - 1
+
+    enemies_counter = enemies_counter - 1
+    
+    if enemies_counter == 0
+        enemies_counter = 30
+        enemies_x[next_enemy] = 38
+        ey = 32 + next_enemy
+        enemies_y[next_enemy] = ey
+        _call(0x4000 3 38 ey)
+        next_enemy = (next_enemy + 1) & 7
+
+    i = move_enemy
+    while i < 8
+    
+        ey = enemies_y[i]
+        if ey != 255
+            ex = enemies_x[i]
+            _call(0x4000 0 ex ey)
+            ex = ex - 1
+            if ex > 0
+                _call(0x4000 3 ex ey)
+                enemies_x[i] = ex
+            else
+                enemies_y[i] = 255
+        
+        i = i + 2
+
+    move_enemy = 1 - move_enemy

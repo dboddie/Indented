@@ -79,6 +79,10 @@ def load_number():
         push_byte(get_operand())
         size -= 1
 
+def load_byte():
+
+    push_byte(get_operand())
+
 def compare_equals():
 
     size = get_operand()
@@ -95,6 +99,13 @@ def compare_equals():
     
     _free_stack_space(size * 2)
     push_byte(true)
+
+def compare_equals_byte():
+
+    if pop_byte() == pop_byte():
+        push_byte(true)
+    else:
+        push_byte(false)
 
 def compare_not_equals():
 
@@ -113,6 +124,13 @@ def compare_not_equals():
     _free_stack_space(size * 2)
     push_byte(false)
 
+def compare_not_equals_byte():
+
+    if pop_byte() != pop_byte():
+        push_byte(true)
+    else:
+        push_byte(false)
+
 def compare_less_than():
 
     size = get_operand()
@@ -129,6 +147,13 @@ def compare_less_than():
     
     _free_stack_space(size * 2)
     push_byte(false)
+
+def compare_less_than_byte():
+
+    if pop_byte() > pop_byte():
+        push_byte(true)
+    else:
+        push_byte(false)
 
 def compare_greater_than():
 
@@ -147,6 +172,13 @@ def compare_greater_than():
     _free_stack_space(size * 2)
     push_byte(false)
 
+def compare_greater_than_byte():
+
+    if pop_byte() < pop_byte():
+        push_byte(true)
+    else:
+        push_byte(false)
+
 def add():
 
     size = get_operand()
@@ -163,6 +195,10 @@ def add():
         i += 1
     
     _free_stack_space(size)
+
+def add_byte():
+
+    push_byte((pop_byte() + pop_byte()) & 0xff)
 
 def subtract():
 
@@ -586,11 +622,17 @@ def end():
 
 lookup = {
     opcodes.load_number: load_number,
+    opcodes.load_byte: load_byte,
     opcodes.compare_equals: compare_equals,
+    opcodes.compare_equals_byte: compare_equals_byte,
     opcodes.compare_not_equals: compare_not_equals,
+    opcodes.compare_not_equals_byte: compare_not_equals_byte,
     opcodes.compare_less_than: compare_less_than,
+    opcodes.compare_less_than_byte: compare_less_than_byte,
     opcodes.compare_greater_than: compare_greater_than,
+    opcodes.compare_greater_than_byte: compare_greater_than_byte,
     opcodes.add: add,
+    opcodes.add_byte: add_byte,
     opcodes.subtract: subtract,
     opcodes.multiply: multiply,
     opcodes.divide: divide,
