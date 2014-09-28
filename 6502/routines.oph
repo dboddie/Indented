@@ -38,142 +38,23 @@
 .alias branch_size 1
 .alias shift_size 1
 
-; The program is included before the routines. The value and call stacks follow
-; the routines.
-; See http://6502.org/tutorials/6502opcodes.html for an explanation of how the
-; jump table is used.
-
-lookup_low:
-.byte <[load_number - 1]
-.byte <[load_byte - 1]
-.byte <[compare_equals - 1]
-.byte <[compare_equals_byte - 1]
-.byte <[compare_not_equals - 1]
-.byte <[compare_not_equals_byte - 1]
-.byte <[compare_less_than - 1]
-.byte <[compare_less_than_byte - 1]
-.byte <[compare_greater_than - 1]
-.byte <[compare_greater_than_byte - 1]
-.byte <[add - 1]
-.byte <[add_byte - 1]
-.byte <[add_byte_constant - 1]
-.byte <[subtract - 1]
-.byte <[subtract_byte - 1]
-.byte <[subtract_byte_constant - 1]
-.byte <[multiply - 1]
-.byte <[divide - 1]
-.byte <[logical_and - 1]
-.byte <[logical_or - 1]
-.byte <[logical_not - 1]
-.byte <[minus - 1]
-.byte <[bitwise_and - 1]
-.byte <[bitwise_and_byte - 1]
-.byte <[bitwise_and_byte_constant - 1]
-.byte <[left_shift - 1]
-.byte <[right_shift - 1]
-.byte <[branch_forward_if_false - 1]
-.byte <[branch_forward - 1]
-.byte <[branch_backward_if_false - 1]
-.byte <[branch_backward - 1]
-.byte <[jump_if_false - 1]
-.byte <[jump - 1]
-.byte <[load_local - 1]
-.byte <[load_local_byte - 1]
-.byte <[load_global - 1]
-.byte <[assign_local - 1]
-.byte <[assign_local_byte - 1]
-.byte <[function_return - 1]
-.byte <[function_call - 1]
-.byte <[load_current_frame_address - 1]
-.byte <[store_stack_top_in_current_frame - 1]
-.byte <[allocate_stack_space - 1]
-.byte <[free_stack_space - 1]
-.byte <[pop_current_frame_address - 1]
-.byte <[copy_value - 1]
-.byte <[system_call - 1]
-.byte <[get_variable_address - 1]
-.byte <[load_array_value - 1]
-.byte <[load_array_byte_value - 1]
-.byte <[store_array_value - 1]
-.byte <[store_array_byte_value - 1]
-.byte <[end - 1]
-
-lookup_high:
-.byte >[load_number - 1]
-.byte >[load_byte - 1]
-.byte >[compare_equals - 1]
-.byte >[compare_equals_byte - 1]
-.byte >[compare_not_equals - 1]
-.byte >[compare_not_equals_byte - 1]
-.byte >[compare_less_than - 1]
-.byte >[compare_less_than_byte - 1]
-.byte >[compare_greater_than - 1]
-.byte >[compare_greater_than_byte - 1]
-.byte >[add - 1]
-.byte >[add_byte - 1]
-.byte >[add_byte_constant - 1]
-.byte >[subtract - 1]
-.byte >[subtract_byte - 1]
-.byte >[subtract_byte_constant - 1]
-.byte >[multiply - 1]
-.byte >[divide - 1]
-.byte >[logical_and - 1]
-.byte >[logical_or - 1]
-.byte >[logical_not - 1]
-.byte >[minus - 1]
-.byte >[bitwise_and - 1]
-.byte >[bitwise_and_byte - 1]
-.byte >[bitwise_and_byte_constant - 1]
-.byte >[left_shift - 1]
-.byte >[right_shift - 1]
-.byte >[branch_forward_if_false - 1]
-.byte >[branch_forward - 1]
-.byte >[branch_backward_if_false - 1]
-.byte >[branch_backward - 1]
-.byte >[jump_if_false - 1]
-.byte >[jump - 1]
-.byte >[load_local - 1]
-.byte >[load_local_byte - 1]
-.byte >[load_global - 1]
-.byte >[assign_local - 1]
-.byte >[assign_local_byte - 1]
-.byte >[function_return - 1]
-.byte >[function_call - 1]
-.byte >[load_current_frame_address - 1]
-.byte >[store_stack_top_in_current_frame - 1]
-.byte >[allocate_stack_space - 1]
-.byte >[free_stack_space - 1]
-.byte >[pop_current_frame_address - 1]
-.byte >[copy_value - 1]
-.byte >[system_call - 1]
-.byte >[get_variable_address - 1]
-.byte >[load_array_value - 1]
-.byte >[load_array_byte_value - 1]
-.byte >[store_array_value - 1]
-.byte >[store_array_byte_value - 1]
-.byte >[end - 1]
-
-program:
-
-.include "program.oph"
-
-run:
+_run:
 
     lda #program_start_low
     sta program_counter
     lda #program_start_high
     sta [program_counter + 1]
 
-    lda #<stack
+    lda #<_stack
     sta call_stack_pointer
-    lda #>stack
+    lda #>_stack
     sta [call_stack_pointer + 1]
 
-    lda #<stack
+    lda #<_stack
     adc #32
     sta current_frame
     sta stack_pointer
-    lda #>stack
+    lda #>_stack
     adc #0
     sta [current_frame + 1]
     sta [stack_pointer + 1]
@@ -540,41 +421,41 @@ compare_equals_byte:
     jsr _pop_bytes
     stx temp
     cmp temp
-    beq compare_returns_true
-    bne compare_returns_false
+    beq _compare_returns_true
+    bne _compare_returns_false
 
 compare_not_equals_byte:
 
     jsr _pop_bytes
     stx temp
     cmp temp
-    bne compare_returns_true
-    beq compare_returns_false
+    bne _compare_returns_true
+    beq _compare_returns_false
 
 compare_less_than_byte:
 
     jsr _pop_bytes
     stx temp
     cmp temp
-    bcc compare_returns_true
-    bcs compare_returns_false
+    bcc _compare_returns_true
+    bcs _compare_returns_false
 
 compare_greater_than_byte:
 
     jsr _pop_bytes
     stx temp
     cmp temp
-    bcc compare_returns_false
-    beq compare_returns_false
-    bcs compare_returns_true
+    bcc _compare_returns_false
+    beq _compare_returns_false
+    bcs _compare_returns_true
 
-compare_returns_true:
+_compare_returns_true:
 
     lda #true
     jsr _push_byte
     jmp next_instruction
 
-compare_returns_false:
+_compare_returns_false:
 
     lda #false
     jsr _push_byte
@@ -1253,27 +1134,27 @@ copy_value:
     jsr _allocate_stack_space
     jmp next_instruction
 
-system_call:
+sys_call:
 
     jsr _get_operand
     sta size
 
     cmp #4
-    beq system_call_read_4
+    beq sys_call_read_4
     cmp #3
-    beq system_call_read_3
+    beq sys_call_read_3
     cmp #2
-    beq system_call_read_2
+    beq sys_call_read_2
 
     jsr _pop_byte
     sta sys_Y
-    system_call_read_4:
+    sys_call_read_4:
     jsr _pop_byte
     sta sys_X
-    system_call_read_3:
+    sys_call_read_3:
     jsr _pop_byte
     sta sys_A
-    system_call_read_2:
+    sys_call_read_2:
 
     jsr _pop_bytes
     stx [temp + 1]
@@ -1285,24 +1166,24 @@ system_call:
 
     ; Call a subroutine that jumps directly into the system routine. When the
     ; system routine exits, it will return to the code after this instruction.
-    jsr system_call_call
+    jsr sys_call_call
 
     ; Push the registers onto the stack.
 
     sty temp            ; Save Y because the _push_byte routine uses it.
     sta [temp + 1]
 
-    bcc system_call_carry_clear
+    bcc sys_call_carry_clear
     clc
     lda #1
     jsr _push_byte      ; Push a value of 1 to indicate that carry was set.
-    bcc system_call_push
+    bcc sys_call_push
 
-    system_call_carry_clear:
+    sys_call_carry_clear:
     lda #0
     jsr _push_byte      ; Push a value of 0 to indicate that carry was clear.
 
-    system_call_push:
+    sys_call_push:
 
     lda [temp + 1]
     jsr _push_byte      ; Push A.
@@ -1313,7 +1194,7 @@ system_call:
 
     jmp next_instruction
 
-system_call_call:   ; temp,temp+1=address of system routine
+    sys_call_call:   ; temp,temp+1=address of system routine
 
     jmp (temp)      ; returns to caller
 
@@ -1532,4 +1413,7 @@ end:
     clc
     rts
 
-stack:
+; The program is included after the routines. The value and call stacks follow
+; the program.
+; See http://6502.org/tutorials/6502opcodes.html for an explanation of how the
+; jump table is used.

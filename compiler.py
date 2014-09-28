@@ -1326,9 +1326,13 @@ def parse_variable(stream):
     put_tokens(top)
     return False
 
-def save_opcodes_oph(file_name, start_address):
+def save_opcodes_oph(file_name_or_obj, start_address):
 
-    f = open(file_name, "w")
+    if isinstance(file_name_or_obj, file):
+        f = file_name_or_obj
+    else:
+        f = open(file_name_or_obj, "w")
+    
     i = 0
     while i < len(generator.code):
         opcodes = []
@@ -1339,13 +1343,26 @@ def save_opcodes_oph(file_name, start_address):
     
     f.write(".alias program_start_low  $%02x\n" % (start_address & 0xff))
     f.write(".alias program_start_high $%02x\n" % (start_address >> 8))
-    f.close()
+    f.write("\n")
+    
+    if not isinstance(file_name_or_obj, file):
+        f.close()
 
 def save_opcodes(file_name):
 
     f = open(file_name, "wb")
     f.write("".join(map(chr, map(lambda x: x & 0xff, generator.code))))
     f.close()
+
+def get_opcodes_used():
+
+    d = {}
+    
+    for v in generator.code:
+        if v > 255:
+            d[v] = d.get(v, 0) + 1
+    
+    return d
 
 
 if __name__ == "__main__":
@@ -1379,11 +1396,7 @@ if __name__ == "__main__":
         addr += 1
     
     print "Opcode usage:"
-    d = {}
-    for v in generator.code:
-        if v > 255:
-            d[v] = d.get(v, 0) + 1
-    
+    d = get_opcodes_used()
     freq = map(lambda (k, v): (v, k), d.items())
     freq.sort()
     for v, k in freq:

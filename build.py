@@ -19,9 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os, stat, struct, sys
 import cmdsyntax, UEFfile
-import compiler, opcodes
+import compiler, opcodes, simulator
 
-version = "0.1"
+version = "0.2"
 
 def system(command):
 
@@ -39,6 +39,81 @@ def address_length_end(address, data):
     end_low = end & 0xff
     end_high = end >> 8
     return address_low, address_high, length_low, length_high, end_low, end_high
+
+def read_routines(lines):
+
+    routines = []
+    current = []
+    
+    for line in lines:
+    
+        l = line.lstrip()
+        
+        if ":" in line and line == l and not l.startswith(";"):
+            # Start reading the new routine.
+            if current:
+                routines.append(current)
+            
+            current = [line]
+        else:
+            current.append(line)
+    
+    if current:
+        routines.append(current)
+    
+    return routines
+
+def renumber_opcodes(used):
+
+    items = used.items()
+    items.sort()
+    
+    # Renumber the opcodes.
+    mapping = {}
+    i = 0
+    for opcode, frequency in items:
+        mapping[opcode] = i
+        i += 1
+    
+    # Replace the old opcodes with the renumbered ones.
+    i = 0
+    while i < len(compiler.generator.code):
+        value = compiler.generator.code[i]
+        compiler.generator.code[i] = mapping.get(value, value)
+        i += 1
+    
+    names = []
+    for opcode, frequency in items:
+        names.append(simulator.lookup[opcode].__name__)
+    
+    return names
+
+def write_header(f, routines):
+
+    f.write("".join(routines[0]))
+
+def write_routines(f, routines, names):
+
+    for routine in routines:
+        name = routine[0]
+        if ":" in name:
+            name = name[:name.find(":")]
+            # Check for internal routines.
+            if name.startswith("_"):
+                f.write("".join(routine))
+            elif name in names:
+                f.write("".join(routine))
+
+def write_lookup_tables(f, names):
+
+    f.write("\nlookup_low:\n")
+    for name in names:
+        f.write(".byte <[%s - 1]\n" % name)
+    
+    f.write("\nlookup_high:\n")
+    for name in names:
+        f.write(".byte >[%s - 1]\n" % name)
+
 
 if __name__ == "__main__":
 
@@ -58,12 +133,18 @@ if __name__ == "__main__":
     
     stream = open(input_file)
     
-    load_address_string = filter(lambda x: x.startswith(".org"),
-                                 open("6502/routines.oph").readlines())[0].split()[1]
-    load_address = int(load_address_string[1:], 16)
+    routines_oph = open("6502/routines.oph").readlines()
+    for line in routines_oph:
+        if line.startswith(".org"):
+            load_address_string = line.split()[1]
+            load_address = int(load_address_string[1:], 16)
+            break
+    else:
+        sys.stderr.write("No address found in 6502/routines.oph file.\n")
+        sys.exit(1)
     
     # Calculate the program address to enable linking to occur.
-    program_address = load_address + (opcodes.end - 256 + 1) * 2
+    program_address = load_address
     
     try:
         start_address = compiler.parse_program(stream, program_address)
@@ -71,15 +152,34 @@ if __name__ == "__main__":
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
     
-    compiler.save_opcodes_oph("6502/program.oph", start_address)
     program_length = len(compiler.generator.code)
     print "Program is", program_length, "bytes long."
     
-    system("ophis 6502/routines.oph -o CODE")
+    # Write the program file, including only the required routines from the
+    # routines.oph file.
+    f = open("6502/program.oph", "w")
+    
+    used = compiler.get_opcodes_used()
+    names = renumber_opcodes(used)
+    
+    routines = read_routines(routines_oph)
+    write_header(f, routines)
+    
+    f.write("program:\n")
+    compiler.save_opcodes_oph(f, start_address)
+    
+    write_routines(f, routines, names)
+    write_lookup_tables(f, names)
+    
+    f.write("\n_stack:\n")
+    
+    f.close()
+    
+    system("ophis 6502/program.oph -o CODE")
     code = open("CODE").read()
     
     # Set the execution address to be the address following the opcodes.
-    files = [("CODE", load_address, program_address + program_length, code)]
+    files = [("CODE", load_address, load_address + program_length, code)]
     
     if manifest_file:
     
