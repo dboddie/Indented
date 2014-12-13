@@ -1368,7 +1368,9 @@ def get_opcodes_used():
 if __name__ == "__main__":
 
     if not 2 <= len(sys.argv) <= 3:
-        sys.stderr.write("Usage: %s [-r | -s] <file>\n" % sys.argv[0])
+        sys.stderr.write("Usage: %s [-r | -s] <file>\n\n"
+            "-r    Run the generated code in a simulator.\n"
+            "-s    Save the generated code in the 6502/program.oph file.\n" % sys.argv[0])
         sys.exit(1)
     
     stream = open(sys.argv[-1])
