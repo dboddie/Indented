@@ -4,27 +4,40 @@ Overview
 This document is incomplete. See the examples in the Examples directory for
 an overview of the syntax used for the language.
 
+The compiler is currently written in Python. Ideas for a compiler written in
+assembly language are written inline as indented paragraphs.
+
 Statements are parsed and compiled immediately, with statements separated by
 newlines and possibly other symbols like commas, semicolons or colons.
+If any part of this fails then the generated code is simply discarded and an
+error reported.
 
 Control flow structures and definitions end before the next non-empty line
 with the same or less indentation, or at the end of the file.
 
-Function definitions are stored in the code area, possibly a linked list of
-names and routines.
+Function definitions are stored in a list as they are parsed. Each definition
+includes information about its name, arguments, local variables, base address
+and return type information.
 
-Compilation occurs on the compilation stack, a bottom-up stack whose frames
-contain position-independent code that is copied into function definitions
-when it is complete, or discarded if incomplete or invalid.
+  Function definitions are stored in the code area, possibly a linked list of
+  names and routines.
 
-Arguments to functions, temporary values and return values are stored on the
-value stack.
+Compiled code is written using a set of functions in the generator module. As
+noted above, generated code that is not needed is discarded immediately and
+compilation will stop with an error if necessary.
 
-The system's call stack is used for return addresses in compiled code.
+  Compilation occurs on the compilation stack, a bottom-up stack whose frames
+  contain position-independent code that is copied into function definitions
+  when it is complete, or discarded if incomplete or invalid.
 
-A variable stack will hold local variables. The sizes of these are determined
-and recorded during the compilation of each function so that code to allocate
-and free space can be compiled in the body of the function.
+Apart from the system's call stack, there are two stacks in use: a value stack
+and a call stack. The value stack holds variable values, temporary values,
+arguments to functions and return values. The call stack holds return addresses
+in the bytecode for functions.
+
+  A variable stack will hold local variables. The sizes of these are determined
+  and recorded during the compilation of each function so that code to allocate
+  and free space can be compiled in the body of the function.
 
 Initially, the grammar will be loosely defined, allowing both valid and invalid
 syntax to some extent.
@@ -32,74 +45,73 @@ syntax to some extent.
 Grammar
 -------
 
-<function> =
-"def" <name> <var0> "=" <value0> <var1> "=" <value1> ...
-<body>
+This isn't a formal description but more of a general idea of how source code
+is structured and processed by the compiler.
 
-<body> =
-[indent]
-    <statement0>
-    <statement1>
-    ...
-[dedent]
+<program> = [<definition> | <control> | <statement>]+
 
-<statement> = <if> | <while> | <assignment>
+<definition> = "def" <name> (<var name> "(" <var type> ")")+ <body>
 
-<if> =
-"if" <expression>
-<body>
-["else"
-<body>]
+<control> = ("if" <expression> <body>) | ("while" <expression> <body>)
 
-<while> =
-"while" <expression>
-<body>
+<statement> = [<name> "="] <expression> <separator>
 
-<assignment> =
-<name> "=" <expression>
+<body> = <indent> (<control> | <return> | <statement>)+ <dedent>
 
-<expression> =
-<value> [<operator> <value>] ...
+<value> = <number> | <string>
 
-<value> = <name> | <constant>
+<built-in call> = "_addr" "(" [<argument>+] ")"
 
-<operator> = "==" | "!=" | "+" | "-"
+<expression> = ["("] <operand> [<operator> <operand>]+ [")"]
+
+<operand> = ["not" | "-"] <operand value>
+
+<operand value> = <value> | <variable> | <function call> | <system call>
+
+<system call> = _call "(" <address> [<A> [<X> [<Y>]]] ")"
+
+<function call> = <name> "(" [<argument>+] ")"
+
+<return> = "return" [<expression>]
+
+<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" | "&" | "<<" | ">>" <operand>
+
+<separator> = <newline> | <eof>
 
 Example code (function definition)
 ----------------------------------
 
-def factorial x (int8)
-    if x == 0
+def factorial x (byte)
+    if x < 2
         return 1
-    else
-        return x * factorial(x - 1)
+    if x > 1
+        return x * factorial ( x - 1 )
+
+C = factorial ( 3 )
 
 The "def" keyword starts compilation of a function with the name and
-arguments specified before the first newline. The definition ends at the
-position in the file described above. The type of each argument is given in
-parentheses after each name.
+arguments specified before the first newline. The type of each argument is
+given in parentheses after each name.
 
-The function name could be temporarily added to the module/global dictionary
-when it is first encountered, allowing the definition to contain references
-to itself. However, this would not allow mutually recursive functions to be
-defined, so perhaps introducing a placeholder for unresolved function calls
-could be an alternative mechanism for both types of recursion.
+The function body follows and continues until the indentation returns to the
+level of the "def" keyword.
 
-As "if" and "else" keywords are encountered, control passes to handler
-functions that compile code for these control flow structures.
+As the "if" keyword is encountered, control passes to handler functions that
+compile code for these control flow structures. Variable references or
+constants are compiled to code that loads the relevant value onto the value
+stack.
 
-Variable references or constants are compiled to code that loads the
-relevant value onto the value stack.
-
-As operators, such as "==", are encountered, control passes to handler
-functions that parse the required number of additional arguments, compiling
-code to handle them and produce a result. When used as part of a control flow
-block, the handler function for the surrounding statement will generate code
-to handle the result.
+As operators, such as "<", are encountered, control passes to handler functions
+that parse the required number of additional arguments, compiling code to
+handle them and produce a result. When used as part of a control flow block,
+the handler function for the surrounding statement will generate code to handle
+the result.
 
 Although it may be possible to infer the types associated with each parameter
 from the way they are used in the function, we are not aiming to make the
-parser complex enough to achieve this.
+parser complex enough to achieve this. The type is defined by the parameter
+in the function definition and this is propagated to other variables by
+assignment and through operations.
 
 Example code (variable definition)
 ----------------------------------
@@ -110,11 +122,8 @@ When the "x" name is encountered, it is initially undefined. This would be an
 error if we were trying to use its value, but we are defining it. This means
 that it must be immediately followed by an assignment operator.
 
-Problems
---------
-
-See the lines.py file for a list of current problems in the first
-implementation.
+Problems, Solutions and Workarounds
+-----------------------------------
 
 The return types of functions are not declared in advance, making it
 problematic when a recursive function call is encountered because we rely on

@@ -373,6 +373,8 @@ def parse_array_index(stream):
 
 def parse_body(stream):
 
+    '<body> = <indent> (<control> | <return> | <statement>)+ <dedent>'
+    
     if not parse_indent(stream):
         return False
     
@@ -444,6 +446,8 @@ def parse_builtin_call(stream):
 
 def parse_control(stream):
 
+    '<control> = ("if" <expression> <body>) | ("while" <expression> <body>)'
+    
     top = len(used)
     token = get_token(stream)
     
@@ -533,6 +537,8 @@ def parse_dedent(stream):
 
 def parse_definition(stream):
 
+    '<definition> = "def" <name> (<var name> "(" <var type> ")")+ <body>'
+    
     global in_function
     
     top = len(used)
@@ -978,6 +984,8 @@ def parse_operation(stream):
 
 def parse_program(stream, base_address):
 
+    '<program> = [<definition> | <control> | <statement>]+'
+    
     generator.base_address = base_address
     
     top = len(used)
@@ -1065,7 +1073,7 @@ def parse_separator(stream):
 
 def parse_statement(stream):
 
-    "<statement> = <expression> <separator>"
+    '<statement> = [<name> "="] <expression> <separator>'
     
     global current_size, current_element_size, current_array
     
