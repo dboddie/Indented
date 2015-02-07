@@ -68,7 +68,7 @@ if __name__ == "__main__":
     target, architecture = find_option(args, "-t", 1)
     output, output_file = find_option(args, "-o", 1)
     
-    if not 1 <= len(args) <= 2:
+    if not 1 <= len(args) <= 2 or not target:
         sys.stderr.write(
             "Usage: %s <program file> [<manifest file>] -t <target> -o <output file>\n\n"
             "-t    Generate code for the specified <target> architecture.\n"
@@ -86,6 +86,9 @@ if __name__ == "__main__":
     if architecture == "6502":
         from arch._6502 import linker
         program_address = linker.get_program_address()
+    else:
+        sys.stderr.write("Unknown target architecture specified: %s\n" % architecture)
+        sys.exit(1)
     
     try:
         start_address = compiler.parse_program(stream, program_address)

@@ -1361,7 +1361,7 @@ if __name__ == "__main__":
     target, architecture = find_option(args, "-t", 1)
     output, file_name = find_option(args, "-o", 1)
     
-    if len(args) != 1:
+    if len(args) != 1 or not target:
         sys.stderr.write(
             "Usage: %s [-r] [-t <target>] <file> [-o <output file>]\n\n"
             "-r    Run the generated code in a simulator.\n"
@@ -1371,10 +1371,15 @@ if __name__ == "__main__":
     
     stream = open(args[0])
     
-    load_address = 0x0e00
+    if architecture == "6502":
+        from arch._6502 import linker
+        program_address = linker.get_program_address()
+    else:
+        sys.stderr.write("Unknown target architecture specified: %s\n" % architecture)
+        sys.exit(1)
     
     try:
-        start_address = parse_program(stream, load_address)
+        start_address = parse_program(stream, program_address)
     except SyntaxError as exception:
         sys.stderr.write(str(exception) + "\n")
         sys.exit(1)
@@ -1386,7 +1391,7 @@ if __name__ == "__main__":
     pprint.pprint(local_variables)
     
     print "Main code:"
-    addr = load_address
+    addr = program_address
     for v in generator.code:
         print "%04x: %03i (%02x)" % (addr, v, v)
         addr += 1
@@ -1400,7 +1405,7 @@ if __name__ == "__main__":
     
     if run:
         print "Loading"
-        simulator.load(generator.code, load_address)
+        simulator.load(generator.code, program_address)
         print "Running"
         print simulator.run(start_address)
     
