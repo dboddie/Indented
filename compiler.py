@@ -22,6 +22,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import pprint, string, sys
 import generator, opcodes, simulator, tokeniser
 from tokeniser import read_token
+from arguments import find_option
+
+version = "0.3"
 
 # Token handling - lists of incoming tokens and those tentatively processed
 
@@ -1375,17 +1378,22 @@ def get_opcodes_used():
 
 if __name__ == "__main__":
 
-    if not 2 <= len(sys.argv) <= 3:
-        sys.stderr.write("Usage: %s [-r | -s] <file>\n\n"
+    this_program, args = sys.argv[0], sys.argv[1:]
+    run = find_option(args, "-r", 0)
+    target, architecture = find_option(args, "-t", 1)
+    output, file_name = find_option(args, "-o", 1)
+    
+    if len(args) != 1:
+        sys.stderr.write(
+            "Usage: %s [-r] [-t <target>] <file> [-o <output file>]\n\n"
             "-r    Run the generated code in a simulator.\n"
-            "-s    Save the generated code in the 6502/program.oph file.\n" % sys.argv[0])
+            "-t    Generate code for the specified <target> architecture.\n"
+            "-o    Write the generated code to the specified <output file>.\n\n" % this_program)
         sys.exit(1)
     
-    stream = open(sys.argv[-1])
-    run = sys.argv[1] == "-r"
-    save = sys.argv[1] == "-s"
+    stream = open(args[0])
     
-    load_address = 0x0e00 + (opcodes.end - 256 + 1) * 2
+    load_address = 0x0e00
     
     try:
         start_address = parse_program(stream, load_address)
@@ -1418,5 +1426,5 @@ if __name__ == "__main__":
         print "Running"
         print simulator.run(start_address)
     
-    if save:
-        save_opcodes_oph("6502/program.oph", start_address)
+    if output:
+        save_opcodes_oph(file_name, start_address)

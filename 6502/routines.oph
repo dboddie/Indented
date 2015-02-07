@@ -1413,7 +1413,11 @@ end:
     clc
     rts
 
-; The program is included after the routines. The value and call stacks follow
-; the program.
+; The opcodes for the program are included before the routines because the
+; size of the support routines are not necessarily known when the program is
+; compiled.
+; The jump tables for the opcodes are included after the support routines.
 ; See http://6502.org/tutorials/6502opcodes.html for an explanation of how the
-; jump table is used.
+; jump tables are used.
+; The value and call stacks follow the program, support routines and jump
+; tables since this allows them to expand upwards in memory.
