@@ -1337,28 +1337,6 @@ def parse_variable(stream):
     put_tokens(top)
     return False
 
-def save_opcodes_oph(file_name_or_obj, start_address):
-
-    if isinstance(file_name_or_obj, file):
-        f = file_name_or_obj
-    else:
-        f = open(file_name_or_obj, "w")
-    
-    i = 0
-    while i < len(generator.code):
-        opcodes = []
-        for opcode in generator.code[i:i + 24]:
-            opcodes.append(opcode & 0xff)
-        f.write(".byte " + ", ".join(map(str, opcodes)) + "\n")
-        i += 24
-    
-    f.write(".alias program_start_low  $%02x\n" % (start_address & 0xff))
-    f.write(".alias program_start_high $%02x\n" % (start_address >> 8))
-    f.write("\n")
-    
-    if not isinstance(file_name_or_obj, file):
-        f.close()
-
 def save_opcodes(file_name):
 
     f = open(file_name, "wb")
@@ -1427,4 +1405,4 @@ if __name__ == "__main__":
         print simulator.run(start_address)
     
     if output:
-        save_opcodes_oph(file_name, start_address)
+        save_opcodes(file_name)

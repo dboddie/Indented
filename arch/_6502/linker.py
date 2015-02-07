@@ -1,15 +1,21 @@
-import sys
+import os, sys
+import UEFfile
+
+def system(command):
+
+    if os.system(command):
+        sys.exit(1)
 
 def get_program_address():
 
-    routines_oph = open("6502/routines.oph").readlines()
+    routines_oph = open("arch/_6502/routines.oph").readlines()
     for line in routines_oph:
         if line.startswith(".org"):
             load_address_string = line.split()[1]
             load_address = int(load_address_string[1:], 16)
             break
     else:
-        sys.stderr.write("No address found in 6502/routines.oph file.\n")
+        sys.stderr.write("No address found in arch/_6502/routines.oph file.\n")
         sys.exit(1)
     
     # Calculate the program address to enable linking to occur.
@@ -66,19 +72,42 @@ def write_lookup_tables(f, names):
     for name in names:
         f.write(".byte >[%s - 1]\n" % name)
 
-def link(routines_used, manifest_file, output_file):
+def save_opcodes_oph(file_name_or_obj, start_address, program_opcodes):
+
+    if isinstance(file_name_or_obj, file):
+        f = file_name_or_obj
+    else:
+        f = open(file_name_or_obj, "w")
+    
+    i = 0
+    while i < len(program_opcodes):
+        opcodes = []
+        for opcode in program_opcodes[i:i + 24]:
+            opcodes.append(opcode & 0xff)
+        f.write(".byte " + ", ".join(map(str, opcodes)) + "\n")
+        i += 24
+    
+    f.write(".alias program_start_low  $%02x\n" % (start_address & 0xff))
+    f.write(".alias program_start_high $%02x\n" % (start_address >> 8))
+    f.write("\n")
+    
+    if not isinstance(file_name_or_obj, file):
+        f.close()
+
+def link(program_opcodes, program_address, start_address, routines_used,
+         manifest_file, output_file, version):
 
     # Write the program file, including only the required routines from the
     # routines.oph file.
-    f = open("6502/program.oph", "w")
+    f = open("arch/_6502/program.oph", "w")
     
-    routines_oph = open("6502/routines.oph").readlines()
+    routines_oph = open("arch/_6502/routines.oph").readlines()
     routines = read_routines(routines_oph)
     write_header(f, routines)
     
     # Write the opcodes used in the program to the output file.
     f.write("program:\n")
-    compiler.save_opcodes_oph(f, start_address)
+    save_opcodes_oph(f, start_address, program_opcodes)
     
     # Write the routines corresponding to the opcodes and lookup tables for them.
     write_routines(f, routines, routines_used)
@@ -88,11 +117,12 @@ def link(routines_used, manifest_file, output_file):
     
     f.close()
     
-    system("ophis 6502/program.oph -o CODE")
+    system("ophis arch/_6502/program.oph -o CODE")
     code = open("CODE").read()
     
     # Set the execution address to be the address following the opcodes.
-    files = [("CODE", load_address, load_address + program_length, code)]
+    program_length = len(program_opcodes)
+    files = [("CODE", program_address, program_address + program_length, code)]
     
     if manifest_file:
     
@@ -130,7 +160,7 @@ def link(routines_used, manifest_file, output_file):
             exec_ = int(exec_[2:], 16)
             files.append((obj, load, exec_, data))
     
-    u = UEFfile.UEFfile(creator = 'build.py '+version)
+    u = UEFfile.UEFfile(creator = 'Indented build.py ' + version)
     u.minor = 6
     u.target_machine = "Electron"
     
@@ -157,8 +187,8 @@ def link(routines_used, manifest_file, output_file):
     
     # Write the new UEF file.
     try:
-        u.write(out_uef_file, write_emulator_info = False)
+        u.write(output_file, write_emulator_info = False)
     except UEFfile.UEFfile_error:
-        sys.stderr.write("Couldn't write the new executable to %s.\n" % out_uef_file)
+        sys.stderr.write("Couldn't write the new executable to %s.\n" % output_file)
         sys.exit(1)
     

@@ -18,17 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import os, stat, struct, sys
-import UEFfile
 import compiler, opcodes, simulator
 from arguments import find_option
 
 # The version is obtained from the compiler module.
 version = compiler.version
-
-def system(command):
-
-    if os.system(command):
-        sys.exit(1)
 
 def address_length_end(address, data):
 
@@ -90,7 +84,7 @@ if __name__ == "__main__":
     stream = open(input_file)
     
     if architecture == "6502":
-        from 6502 import linker
+        from arch._6502 import linker
         program_address = linker.get_program_address()
     
     try:
@@ -106,7 +100,7 @@ if __name__ == "__main__":
     opcodes_used = compiler.get_opcodes_used()
     routines_used = renumber_opcodes(opcodes_used)
     
-    linker.link(routines, manifest_file, output_file)
-    
+    linker.link(compiler.generator.code, program_address, start_address,
+                routines_used, manifest_file, output_file, version)
     # Exit
     sys.exit()
