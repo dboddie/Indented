@@ -248,7 +248,7 @@ _set_ptr2:  ; ptr2 = stack_pointer - size
     clc
     rts
 
-_set_ptr1:  ; ptr1 = ptr2 - A
+_set_ptr1:  ; ptr1 = ptr2 - size
 
     sec
     lda ptr2
@@ -278,6 +278,7 @@ compare_equals:
         cmp (ptr2),y
         beq compare_equals_loop_continue
 
+            ; Not equal, so exit early.
             lda size
             asl
             jsr _free_stack_space
@@ -318,6 +319,7 @@ compare_not_equals:
         cmp (ptr2),y
         beq compare_not_equals_loop_continue
 
+            ; Not equal, so exit early.
             lda size
             asl
             jsr _free_stack_space
@@ -356,6 +358,7 @@ compare_less_than:
         cmp (ptr2),y
         bcs compare_less_than_loop_continue
 
+            ; Less than, so exit early.
             lda size
             asl
             jsr _free_stack_space
@@ -395,6 +398,7 @@ compare_greater_than:
         bcc compare_greater_than_loop_continue
         beq compare_greater_than_loop_continue
 
+            ; Greater than, so exit early.
             lda size
             asl
             jsr _free_stack_space
