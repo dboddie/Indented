@@ -17,6 +17,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+class ArgumentError(Exception):
+    pass
+
 def find_option(args, label, number = 0):
 
     """Matches an option in a list of command line arguments, returning a
@@ -46,7 +49,7 @@ def find_option(args, label, number = 0):
         return True
     
     if len(values) < number:
-        return False, values
+        raise ArgumentError, "Not enough values for argument '%s': %s" % (label, repr(values))
     
     if number == 1:
         values = values[0]
