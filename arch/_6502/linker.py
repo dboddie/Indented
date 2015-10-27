@@ -154,13 +154,19 @@ def link(program_opcodes, program_address, start_address, routines_used,
         
         manifest_dir = os.path.split(manifest_file)[0]
         
+        l = 1
         for line in lines:
             pieces = line.strip().split()
             if len(pieces) == 4:
                 source, obj, load, exec_ = pieces
                 source_path = os.path.join(manifest_dir, source)
-            else:
+            elif len(pieces) == 3:
                 obj, load, exec_ = pieces
+            else:
+                sys.stderr.write("Invalid input in manifest file '%s' at line %i.\n" % (manifest_file, l))
+                sys.exit(1)
+            
+            l += 1
             
             obj_path = os.path.join(manifest_dir, obj)
             if len(pieces) == 4:
