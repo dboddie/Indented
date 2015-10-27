@@ -24,6 +24,9 @@ import compiler, generator, opcodes, simulator
 
 expected_results = {
     "address-1.txt": [109, 121, 102, 105, 108, 101, 127, 14],
+    "addition-1.txt": [],
+    "addition-3.txt": [],
+    "addition-4.txt": [],
     "and-1.txt": [0, 31],
     "and-2.txt": [255, 31, 31, 63, 63],
     "assignment-1.txt": [1],
@@ -78,6 +81,8 @@ expected_results = {
     "string-7.txt": [83, 116, 114, 105, 110, 103, 6, 103],
     "string-8.txt": [65, 66, 67, 68, 69, 70],
     "string-9.txt": [83, 116, 114, 105, 110, 103, 6],
+    "subtract-1.txt": [10, 12, 254],
+    "subtract-2.txt": [2, 0, 3, 0, 255, 255],
     "while-2.txt": [0],
     "while-3.txt": [1, 88],
     "while-4.txt": [1, 14]
