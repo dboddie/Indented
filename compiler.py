@@ -1361,7 +1361,7 @@ if __name__ == "__main__":
     target, architecture = find_option(args, "-t", 1)
     output, file_name = find_option(args, "-o", 1)
     
-    if len(args) != 1 or not target:
+    if len(args) != 1 or (not target and not run):
         sys.stderr.write(
             "Usage: %s [-r] [-t <target>] <file> [-o <output file>]\n\n"
             "-r    Run the generated code in a simulator.\n"
@@ -1374,6 +1374,8 @@ if __name__ == "__main__":
     if architecture == "6502":
         from arch._6502 import linker
         program_address = linker.get_program_address()
+    elif run:
+        program_address = 0
     else:
         sys.stderr.write("Unknown target architecture specified: %s\n" % architecture)
         sys.exit(1)

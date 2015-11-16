@@ -55,6 +55,7 @@ expected_results = {
     "def-15.txt": [],
     "def-16.txt": [],
     "def-17.txt": [],
+    "def-18.txt": [5],
     "expression-1.txt": [],
     "expression-2.txt": [],
     "expression-3.txt": [],
