@@ -26,6 +26,9 @@ version = compiler.version
 
 def address_length_end(address, data):
 
+    """Returns the low and high bytes of the start address, length and end of
+    the data specified."""
+    
     address_low = address & 0xff
     address_high = address >> 8
     length = len(data)
@@ -36,9 +39,13 @@ def address_length_end(address, data):
     end_high = end >> 8
     return address_low, address_high, length_low, length_high, end_low, end_high
 
-def renumber_opcodes(used):
+def opcode_routines(opcodes_used):
 
-    items = used.items()
+    """Returns the names of the routines needed by the opcodes used by the
+    program. These needs to be passed to the linker to ensure that the
+    compiled program has all the support functions it needs."""
+    
+    items = opcodes_used.items()
     items.sort()
     
     # Renumber the opcodes.
@@ -101,7 +108,7 @@ if __name__ == "__main__":
     
     # Find the opcodes used and the corresponding routines for them.
     opcodes_used = compiler.get_opcodes_used()
-    routines_used = renumber_opcodes(opcodes_used)
+    routines_used = opcode_routines(opcodes_used)
     
     linker.link(compiler.generator.code, program_address, start_address,
                 routines_used, manifest_file, output_file, version)

@@ -2,7 +2,8 @@ Overview
 --------
 
 This document is incomplete. See the examples in the Examples directory for
-an overview of the syntax used for the language.
+an overview of the syntax used for the language. The syntax is subject to
+change, although it might be interesting to make it configurable.
 
 The compiler is currently written in Python. Ideas for a compiler written in
 assembly language are written inline as indented paragraphs.
@@ -196,3 +197,23 @@ notation that allows us to emphasise which interfaces are important in each
 case. We could use a parallel set of shorthand names that describe interfaces.
 However, storage requirements of values is still something that we need to
 specify in situations where memory needs to be allocated for values.
+
+
+Heap
+----
+
+The initial runtime only uses stacks, which makes use of variable-sized objects
+difficult. As an intermediate step between allocating space for a separate heap
+we could use the current stack frame as a heap, moving objects into parent
+frames as required, and possibly compacting frames before child frames are
+created.
+
+Since the positions of variables in frames are usually decided at compile-time,
+we might need to introduce variable frame indices and opcodes for handling
+these (maybe indirection opcodes) if we intend to move variables around at
+run-time.
+
+It might be interesting to consider heap "frames" that contain and manage
+multiple objects using relative positions within the frame in order to reduce
+the amount of management work when reclaiming space within a heap at a low
+level.

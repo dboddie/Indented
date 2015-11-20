@@ -356,6 +356,8 @@ def print_tokens():
 
 def parse_array_index(stream):
 
+    '<array index> = "[" <expression> "]"'
+    
     top = len(used)
     token = get_token(stream)
     
