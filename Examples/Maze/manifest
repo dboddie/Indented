@@ -1,0 +1,2 @@
+makesprites.py SPRITES 0x5000 0x5000
+plotting.oph ROUTINES 0x4000 0x4000
