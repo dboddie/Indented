@@ -42,6 +42,12 @@ minus, \
 bitwise_and, \
 bitwise_and_byte, \
 bitwise_and_byte_constant, \
+bitwise_or, \
+bitwise_or_byte, \
+bitwise_or_byte_constant, \
+bitwise_eor, \
+bitwise_eor_byte, \
+bitwise_eor_byte_constant, \
 left_shift, \
 right_shift, \
 branch_forward_if_false, \
@@ -69,7 +75,7 @@ load_array_value, \
 load_array_byte_value, \
 store_array_value, \
 store_array_byte_value, \
-end = range(256, 256 + 53)
+end = range(256, 256 + 59)
 
 address_size = 2
 branch_size = 1

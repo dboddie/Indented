@@ -180,6 +180,39 @@ def generate_bitwise_and(size1, size2):
     else:
         code += [bitwise_and_byte]
 
+def generate_bitwise_or(size1, size2):
+
+    global code
+    if size1 > 1 or size2 > 1:
+        code += [bitwise_or, size1, size2]
+    elif code[-2] == load_byte:
+        code[-2] = bitwise_or_byte_constant
+    else:
+        code += [bitwise_or_byte]
+
+def generate_bitwise_eor(size1, size2):
+
+    global code
+    if size1 > 1 or size2 > 1:
+        code += [bitwise_eor, size1, size2]
+    elif code[-2] == load_byte:
+        code[-2] = bitwise_eor_byte_constant
+    else:
+        code += [bitwise_eor_byte]
+
+def generate_bitwise_not(size):
+
+    global code
+    if size > 1:
+        code += [load_number, size]
+        i = 0
+        while i < size:
+            code += [0xff]
+            i += 1
+        code += [bitwise_eor, size, size]
+    else:
+        code += [load_byte, 0xff, bitwise_eor_byte]
+
 def generate_left_shift(size):
 
     global code

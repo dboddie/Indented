@@ -803,11 +803,11 @@ def parse_newline(stream):
         put_tokens(top)
         return False
 
-unary_operators = ("not", "-")
+unary_operators = ("not", "-", "~")
 
 def parse_operand(stream):
 
-    '<operand> = ["not" | "-"] <operand value>'
+    '<operand> = ["not" | "-" | "~" ] <operand value>'
     
     top = len(used)
     token = get_token(stream)
@@ -829,6 +829,10 @@ def parse_operand(stream):
         
         elif token == tokeniser.minus_token:
             generator.generate_minus(current_size)
+            return True
+        
+        elif token == "~":
+            generator.generate_bitwise_not(current_size)
             return True
         
         else:
@@ -857,12 +861,12 @@ def parse_operand_value(stream):
     else:
         return False
 
-operators = ("==", "!=", "<", ">", "+", "-", "*", "/", "and", "or", "&", "<<", ">>")
+operators = ("==", "!=", "<", ">", "+", "-", "*", "/", "and", "or", "&", "|", "^", "<<", ">>")
 asymmetric_operators = ("<<", ">>", "&")
 
 def parse_operation(stream):
 
-    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" | "&" | "<<" | ">>" <operand>'
+    '<operation> = "==" | "!=" | "<" | ">" | "+" | "-" | "*" | "/" | "and" | "or" | "&" | "|" | "^" | "<<" | ">>" <operand>'
     
     global current_size, current_element_size, current_array
     
@@ -959,6 +963,18 @@ def parse_operation(stream):
     
         debug_print("&", token)
         generator.generate_bitwise_and(size1, current_size)
+        current_array = False
+    
+    elif token == "|":
+    
+        debug_print("|", token)
+        generator.generate_bitwise_or(size1, current_size)
+        current_array = False
+    
+    elif token == "^":
+    
+        debug_print("^", token)
+        generator.generate_bitwise_eor(size1, current_size)
         current_array = False
     
     # The shift operators are also asymmetric, with the second operand

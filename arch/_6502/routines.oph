@@ -644,6 +644,100 @@ bitwise_and_byte_constant:
     jsr _push_byte
     jmp next_instruction
 
+bitwise_or:
+
+    jsr _get_operand
+    sta temp            ; size1
+    jsr _get_operand
+    sta size            ; size2
+    tax
+
+    jsr _set_ptr2       ; ptr2 = stack_pointer - size2
+    lda temp
+    sta size
+    jsr _set_ptr1       ; ptr1 = ptr2 - size1
+
+    ldy #0
+    bitwise_or_loop:
+
+        lda (ptr1),y
+        ora (ptr2),y
+        sta (ptr1),y
+
+        iny
+        dex
+        bne bitwise_or_loop
+
+    clc
+
+    lda size                ; size1
+    jsr _free_stack_space
+    jmp next_instruction
+
+bitwise_or_byte:
+
+    jsr _pop_bytes
+    stx temp
+    ora temp
+    jsr _push_byte
+    jmp next_instruction
+
+bitwise_or_byte_constant:
+
+    jsr _get_operand
+    sta temp
+    jsr _pop_byte
+    ora temp
+    jsr _push_byte
+    jmp next_instruction
+
+bitwise_eor:
+
+    jsr _get_operand
+    sta temp            ; size1
+    jsr _get_operand
+    sta size            ; size2
+    tax
+
+    jsr _set_ptr2       ; ptr2 = stack_pointer - size2
+    lda temp
+    sta size
+    jsr _set_ptr1       ; ptr1 = ptr2 - size1
+
+    ldy #0
+    bitwise_eor_loop:
+
+        lda (ptr1),y
+        eor (ptr2),y
+        sta (ptr1),y
+
+        iny
+        dex
+        bne bitwise_eor_loop
+
+    clc
+
+    lda size                ; size1
+    jsr _free_stack_space
+    jmp next_instruction
+
+bitwise_eor_byte:
+
+    jsr _pop_bytes
+    stx temp
+    eor temp
+    jsr _push_byte
+    jmp next_instruction
+
+bitwise_eor_byte_constant:
+
+    jsr _get_operand
+    sta temp
+    jsr _pop_byte
+    eor temp
+    jsr _push_byte
+    jmp next_instruction
+
 left_shift:
 
     jsr _get_operand

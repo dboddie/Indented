@@ -37,6 +37,7 @@ arguments_begin_token = "("
 arguments_end_token = ")"
 system_call_token = "_call"
 logical_not_token = "not"
+bitwise_not_token = "~"
 minus_token = "-"
 comment_token = "#"
 index_begin_token = "["
@@ -131,6 +132,14 @@ def read_token(stream):
         
         elif ch == "(" or ch == ")" or ch == "[" or ch == "]":
             # Opening and closing parentheses are emitted as separate tokens.
+            if token:
+                pending_token = ch
+                break
+            else:
+                return ch
+        
+        elif ch in ("-", system_call_token, logical_not_token, bitwise_not_token):
+            # Unary operators are emitted as separate tokens.
             if token:
                 pending_token = ch
                 break

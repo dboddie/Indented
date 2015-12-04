@@ -217,3 +217,69 @@ It might be interesting to consider heap "frames" that contain and manage
 multiple objects using relative positions within the frame in order to reduce
 the amount of management work when reclaiming space within a heap at a low
 level.
+
+
+Virtual Machine Instructions
+----------------------------
+
+Instruction                 Operands (byte-sized)   Arguments on the stack (top is last)
+----------------------------------------------------------------------------------------
+load_number                         <size>, size * <value>          -
+load_byte                           <value>                         -
+compare_equals                      <size>                          size * <value1>, size * <value2>
+compare_equals_byte                 -                               <value1>, <value2>
+compare_not_equals                  <size>                          size * <value1>, size * <value2>
+compare_not_equals_byte             -                               <value1>, <value2>
+compare_less_than                   <size>                          size * <value1>, size * <value2>
+compare_less_than_byte              -                               <value1>, <value2>
+compare_greater_than                <size>                          size * <value1>, size * <value2>
+compare_greater_than_byte           -                               <value1>, <value2>
+add                                 <size>                          size * <value1>, size * <value2>
+add_byte                            -                               <value1>, <value2>
+add_byte_constant                   <value2>                        <value1>
+subtract                            <size>                          size * <value1>, size * <value2>
+subtract_byte                       -                               <value1>, <value2>
+subtract_byte_constant              <value2>                        <value1>
+multiply                            <size>                          size * <value1>, size * <value2>
+divide                              <size>                          size * <value1>, size * <value2>
+logical_and                         -                               <value1>, <value2>
+logical_or                          -                               <value1>, <value2>
+logical_not                         -                               <value1>, <value2>
+minus                               <size>                          size * <value>
+bitwise_and                         <size>                          size * <value1>, size * <value2>
+bitwise_and_byte                    -                               <value1>, <value2>
+bitwise_and_byte_constant           <value2>                        <value1>
+bitwise_or                         <size>                           size * <value1>, size * <value2>
+bitwise_or_byte                    -                                <value1>, <value2>
+bitwise_or_byte_constant           <value2>                         <value1>
+bitwise_eor                         <size>                          size * <value1>, size * <value2>
+bitwise_eor_byte                    -                               <value1>, <value2>
+bitwise_eor_byte_constant           <value2>                        <value1>
+left_shift                          <size>                          size * <value1>, size * <value2>
+right_shift                         <size>                          size * <value1>, size * <value2>
+branch_forward_if_false             <offset>                        <value>
+branch_forward                      <offset>                        -
+branch_backward_if_false            <offset>                        <value>
+branch_backward                     <offset>                        -
+jump_if_false                       <address>...                    <value>
+jump                                <address>...                    -
+load_local                          <offset> <size>                 -
+load_local_byte                     <offset>                        -
+load_global                         <offset> <size>                 -
+assign_local                        <offset> <size>                 -
+assign_local_byte                   <offset>                        -
+function_return                     -                               <address>...
+function_call                       <address>...                    -
+load_current_frame_address          -                               -
+store_stack_top_in_current_frame    <size>                          -
+allocate_stack_space                <size>                          -
+free_stack_space                    <size>                          -
+pop_current_frame_address           -                               <address>...
+copy_value                          <offset> <size>                 -
+sys_call                            <size>                          <registers>... <address>...
+get_variable_address                <offset>                        -
+load_array_value                    <offset> <index size> <size>    <index>...
+load_array_byte_value               <offset>                        <index>
+store_array_value                   <offset> <index size> <size>    <index>...
+store_array_byte_value              <offset>                        <index>
+end                                 -                               -

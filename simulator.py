@@ -330,6 +330,50 @@ def bitwise_and_byte_constant():
 
     push_byte(pop_byte() & get_operand())
 
+def bitwise_or():
+
+    size1 = get_operand()
+    size2 = get_operand()
+    ptr2 = stack_pointer - size2
+    ptr1 = ptr2 - size1
+    
+    i = 0
+    while i < size2:
+        memory[ptr1 + i] = memory[ptr1 + i] | memory[ptr2 + i]
+        i += 1
+    
+    _free_stack_space(size1)
+
+def bitwise_or_byte():
+
+    push_byte(pop_byte() | pop_byte())
+
+def bitwise_or_byte_constant():
+
+    push_byte(pop_byte() | get_operand())
+
+def bitwise_eor():
+
+    size1 = get_operand()
+    size2 = get_operand()
+    ptr2 = stack_pointer - size2
+    ptr1 = ptr2 - size1
+    
+    i = 0
+    while i < size2:
+        memory[ptr1 + i] = memory[ptr1 + i] ^ memory[ptr2 + i]
+        i += 1
+    
+    _free_stack_space(size1)
+
+def bitwise_eor_byte():
+
+    push_byte(pop_byte() ^ pop_byte())
+
+def bitwise_eor_byte_constant():
+
+    push_byte(pop_byte() ^ get_operand())
+
 def left_shift():
 
     size = get_operand()
@@ -706,6 +750,12 @@ lookup = {
     opcodes.bitwise_and: bitwise_and,
     opcodes.bitwise_and_byte: bitwise_and_byte,
     opcodes.bitwise_and_byte_constant: bitwise_and_byte_constant,
+    opcodes.bitwise_or: bitwise_or,
+    opcodes.bitwise_or_byte: bitwise_or_byte,
+    opcodes.bitwise_or_byte_constant: bitwise_or_byte_constant,
+    opcodes.bitwise_eor: bitwise_eor,
+    opcodes.bitwise_eor_byte: bitwise_eor_byte,
+    opcodes.bitwise_eor_byte_constant: bitwise_eor_byte_constant,
     opcodes.left_shift: left_shift,
     opcodes.right_shift: right_shift,
     opcodes.branch_forward_if_false: branch_forward_if_false,
