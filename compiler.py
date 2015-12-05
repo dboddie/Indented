@@ -451,7 +451,7 @@ def parse_builtin_call(stream):
 
 def parse_control(stream):
 
-    '<control> = ("if" <expression> <body>) | ("while" <expression> <body>)'
+    '<control> = ("if" <expression> <body> "else" <body>) | ("while" <expression> <body>)'
     
     top = len(used)
     token = get_token(stream)
@@ -672,10 +672,26 @@ def parse_eof(stream):
         put_tokens(top)
         return False
 
+unary_operators = ("not", "-", "~")
+
 def parse_expression(stream):
 
-    '<expression> = ["("] <operand> [<operator> <operand>]+ [")"]'
+    '<expression> = ["not" | "-" | "~"] ["("] <operand> [<operator> <operand>]+ [")"]'
     
+    top = len(used)
+    token = get_token(stream)
+    
+    # Find an optional unary operator.
+    if token in unary_operators:
+        unary_token = token
+    else:
+        # No optional operator was found so we put the token back in the stream
+        # so that the caller can continue.
+        put_tokens(top)
+        unary_token = None
+    
+    # Get the following token if we encountered a unary operator, or the token
+    # pushed back into the stream if not.
     top = len(used)
     token = get_token(stream)
     
@@ -690,8 +706,7 @@ def parse_expression(stream):
     else:
         # Just look for an operand.
         put_tokens(top)
-        
-        if not parse_operand(stream):
+        if not parse_operand_value(stream):
             return False
     
     while True:
@@ -701,6 +716,21 @@ def parse_expression(stream):
             # expression. The operator function should have pushed tokens back
             # on the stack.
             break
+    
+    # Apply the deferred unary operator.
+    if unary_token == tokeniser.logical_not_token:
+        if current_size != 1:
+            raise SyntaxError, "Invalid size for logical not operation at line %i." % tokeniser.line
+        generator.generate_logical_not()
+        return True
+    
+    elif unary_token == tokeniser.minus_token:
+        generator.generate_minus(current_size)
+        return True
+    
+    elif unary_token == "~":
+        generator.generate_bitwise_not(current_size)
+        return True
     
     return True
 
@@ -799,47 +829,6 @@ def parse_newline(stream):
     
     if token == tokeniser.newline_token:
         return True
-    else:
-        put_tokens(top)
-        return False
-
-unary_operators = ("not", "-", "~")
-
-def parse_operand(stream):
-
-    '<operand> = ["not" | "-" | "~" ] <operand value>'
-    
-    top = len(used)
-    token = get_token(stream)
-    
-    # Find an optional unary operator.
-    if token in unary_operators:
-        require_value = True
-    else:
-        put_tokens(top)
-        require_value = False
-    
-    if parse_operand_value(stream):
-    
-        if token == tokeniser.logical_not_token:
-            if current_size != 1:
-                raise SyntaxError, "Invalid size for logical not operation at line %i." % tokeniser.line
-            generator.generate_logical_not()
-            return True
-        
-        elif token == tokeniser.minus_token:
-            generator.generate_minus(current_size)
-            return True
-        
-        elif token == "~":
-            generator.generate_bitwise_not(current_size)
-            return True
-        
-        else:
-            return True
-    
-    elif require_value:
-        raise SyntaxError, "An operand was expected after a unary operator at line %i." % tokeniser.line
     else:
         put_tokens(top)
         return False

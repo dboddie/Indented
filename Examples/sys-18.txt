@@ -1,0 +1,5 @@
+a = 0x00000000
+while True
+    a = _call(0xfff4 129 -98 255)
+    if _call(0xfff4 129 -98 255) == 0xffff8101
+        _call(0xffee 42)

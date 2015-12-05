@@ -56,13 +56,13 @@ while y < 64
     x = 0
     while x < 40
     
-        if i & 1
+        if (i & 1) == 0
             _call(0x4000 sprite x y)
         
         if i & 2
             i = (i >> 1) | 0x80
         else
-            i = (i ^ 0x80) >> 1
+            i = (i ^ y ^ x) >> 1
         
         x = x + 2
 

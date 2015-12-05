@@ -1,0 +1,7 @@
+a = 121
+b = a & 1
+c = not (a & 1)
+if not (a & 1)
+    d = 255
+else
+    d = 0
