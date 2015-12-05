@@ -595,7 +595,27 @@ logical_not:
 
 minus:
 
-    brk
+    jsr _get_operand
+    sta size
+    tax
+
+    jsr _set_ptr2       ; ptr2 = stack_pointer - size
+
+    ldy #0
+    sec                 ; Add 1 to the total.
+    bitwise_minus_loop:
+
+        lda (ptr2),y
+        eor #255
+        adc #0
+        sta (ptr2),y
+
+        iny
+        dex
+        bne bitwise_minus_loop
+
+    clc
+    jmp next_instruction
 
 bitwise_and:
 

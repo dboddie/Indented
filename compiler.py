@@ -770,13 +770,23 @@ def parse_function_call(stream):
     
     total_param_size = total_variable_size(parameters)
     
-    for name, size, element_size, array in parameters:
+    i = 0
+    while i < len(parameters):
     
+        name, size, element_size, array = parameters[i]
+        
         if not parse_expression(stream):
             raise SyntaxError, "Invalid argument to function '%s' at line %i.\n" % (function_name, tokeniser.line)
         
+        if i < len(parameters) - 1:
+            token = get_token(stream)
+            if token != ",":
+                raise SyntaxError, "Expected a comma after function argument '%s' at line %i.\n" % (name, tokeniser.line)
+        
         if current_size != size:
             raise SyntaxError, "Incompatible types in argument to function '%s' at line %i.\n" % (function_name, tokeniser.line)
+        
+        i += 1
     
     token = get_token(stream)
     if token != tokeniser.arguments_end_token:
@@ -1219,8 +1229,11 @@ def parse_system_call(stream):
     
     total_args_size = 0
     
-    for name, size in system_call_parameters:
+    i = 0
+    while i < len(system_call_parameters):
     
+        name, size = system_call_parameters[i]
+        
         top = len(used)
         token = get_token(stream)
         
@@ -1237,6 +1250,11 @@ def parse_system_call(stream):
             # Recover the token.
             put_tokens(top)
         
+        if i > 0:
+            token = get_token(stream)
+            if token != ",":
+                raise SyntaxError, "Expected a comma before system call argument '%s' at line %i.\n" % (name, tokeniser.line)
+        
         if not parse_expression(stream):
             raise SyntaxError, "Invalid system call argument for parameter '%s' at line %i.\n" % (name, tokeniser.line)
         
@@ -1244,6 +1262,8 @@ def parse_system_call(stream):
             raise SyntaxError, "Incompatible types in system call argument for parameter '%s' at line %i.\n" % (name, tokeniser.line)
         
         total_args_size += size
+        
+        i += 1
     
     token = get_token(stream)
     if token != tokeniser.arguments_end_token:

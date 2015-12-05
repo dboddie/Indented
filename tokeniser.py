@@ -138,7 +138,7 @@ def read_token(stream):
             else:
                 return ch
         
-        elif ch in ("-", system_call_token, logical_not_token, bitwise_not_token):
+        elif ch in (minus_token, system_call_token, logical_not_token, bitwise_not_token, ","):
             # Unary operators are emitted as separate tokens.
             if token:
                 pending_token = ch

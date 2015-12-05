@@ -306,6 +306,7 @@ def minus():
     i = 0
     while i < size:
         push_byte(v & 0xff)
+        v = v >> 8
         i += 1
 
 def bitwise_and():

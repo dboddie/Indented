@@ -1,2 +1,2 @@
 def vdu ch (byte)
-    _call ( 0xffee ch )
+    _call ( 0xffee, ch )

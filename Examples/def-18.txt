@@ -1,4 +1,4 @@
 def add a (byte) b (byte)
     return a + b
 
-a = add ( 2 3 )
+a = add ( 2, 3 )

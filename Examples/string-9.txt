@@ -1,5 +1,5 @@
 s = "String"
 i = 0
 while i < 6
-    _call(0xffee s[i]) # VDU
+    _call(0xffee, s[i]) # VDU
     i = i + 1

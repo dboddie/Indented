@@ -74,7 +74,9 @@ expected_results = {
     "if-4.txt": [],
     "if-5.txt": [1],
     "if-6.txt": [2],
+    "if-8.txt": [1],
     "minus-1.txt": [123, 133],
+    "minus-2.txt": [158],
     "not-1.txt": [255, 31, 210, 4, 0, 224, 45, 251],
     "not-2.txt": [121, 1, 0, 0],
     "or-1.txt": [255, 31, 255, 63, 255],
@@ -115,6 +117,7 @@ skip = [
     "sys-14.txt",
     "sys-15.txt",
     "sys-16.txt",
+    "sys-18.txt",
     "while-1-fail.txt"  # does not terminate
     ]
 

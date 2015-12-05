@@ -1,4 +1,4 @@
 while True
-    zyxa = _call(0xfff4 129 -99 255)
+    zyxa = _call(0xfff4, 129, -99, 255)
     if zyxa != 0x00000081
-        _call(0xffee 42)
+        _call(0xffee, 42)
