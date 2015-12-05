@@ -102,6 +102,10 @@ skip = [
     "inline-asm-1.txt",
     "inline-asm-2.txt",
     "inline-asm-3.txt",
+    "while-1-fail.txt"  # does not terminate
+    ]
+
+compile_only = [
     "sys-1.txt",
     "sys-2.txt",
     "sys-3.txt",
@@ -118,8 +122,7 @@ skip = [
     "sys-14.txt",
     "sys-15.txt",
     "sys-16.txt",
-    "sys-18.txt",
-    "while-1-fail.txt"  # does not terminate
+    "sys-18.txt"
     ]
 
 if __name__ == "__main__":
@@ -156,6 +159,10 @@ if __name__ == "__main__":
                 sys.exit(1)
         else:
             print "passed"
+        
+        if name in compile_only:
+            print "Not running", name
+            continue
         
         reload(simulator)
         

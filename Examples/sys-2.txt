@@ -1,5 +1,5 @@
 def vdu ch (byte)
-    _call ( 0xffee ch )
+    _call ( 0xffee, ch )
 
 i = 32
 while i < 128

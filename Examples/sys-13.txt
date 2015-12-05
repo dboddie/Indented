@@ -1,29 +1,29 @@
 def mode number (byte)
-    _call(0xffee 22)
-    _call(0xffee number)
+    _call(0xffee, 22)
+    _call(0xffee, number)
 
 def cursor_off
-    _call(0xffee 23)
-    _call(0xffee 1)
+    _call(0xffee, 23)
+    _call(0xffee, 1)
     i = 0
     while i < 8
-        _call(0xffee 0)
+        _call(0xffee, 0)
         i = i + 1
 
 def plot x (byte) y (byte) ch (byte)
-    _call(0xffee 31)
-    _call(0xffee x)
-    _call(0xffee y)
-    _call(0xffee ch)
+    _call(0xffee, 31)
+    _call(0xffee, x)
+    _call(0xffee, y)
+    _call(0xffee, ch)
 
 def check_keys
-    if _call(0xfff4 129 -98 255) == 0xffff8101
+    if _call(0xfff4, 129, -98, 255) == 0xffff8101
         return 1
-    if _call(0xfff4 129 -67 255) == 0xffff8101
+    if _call(0xfff4, 129, -67, 255) == 0xffff8101
         return 2
-    if _call(0xfff4 129 -73 255) == 0xffff8101
+    if _call(0xfff4, 129, -73, 255) == 0xffff8101
         return 3
-    if _call(0xfff4 129 -105 255) == 0xffff8101
+    if _call(0xfff4, 129, -105, 255) == 0xffff8101
         return 4
     return 0
 
@@ -31,27 +31,27 @@ mode(5)
 cursor_off()
 x = 9
 y = 15
-plot(x y 42)
+plot(x, y, 42)
 
 while True
     key = check_keys()
     if key == 1
         if x > 0
-            plot(x y 32)
+            plot(x, y, 32)
             x = x - 1
-            plot(x y 42)
+            plot(x, y, 42)
     if key == 2
         if x < 19
-            plot(x y 32)
+            plot(x, y, 32)
             x = x + 1
-            plot(x y 42)
+            plot(x, y, 42)
     if key == 3
         if y > 0
-            plot(x y 32)
+            plot(x, y, 32)
             y = y - 1
-            plot(x y 42)
+            plot(x, y, 42)
     if key == 4
         if y < 31
-            plot(x y 32)
+            plot(x, y, 32)
             y = y + 1
-            plot(x y 42)
+            plot(x, y, 42)
