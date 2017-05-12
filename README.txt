@@ -28,7 +28,7 @@ The build tool needs to know about the program and manifest files. To build
 the example from the repository root directory, enter the following at the
 command line:
 
-./build.py Examples/Sprites/sprites.txt Examples/Sprites/manifest -o sprites.uef
+./build.py Examples/Sprites/sprites.txt Examples/Sprites/manifest -t 6502 -o sprites.uef
 
 The build tool runs the compiler on the sprites.txt source file and reads the
 manifest file to discover the other files. The sprites.uef file should be

@@ -1,5 +1,5 @@
 """
-compiler.py - A compiler for a simple programming language.
+generator.py - Code generator for a simple compiler.
 
 Copyright (C) 2014 David Boddie <david@boddie.org.uk>
 
