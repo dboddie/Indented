@@ -74,12 +74,14 @@ if __name__ == "__main__":
     this_program, args = sys.argv[0], sys.argv[1:]
     target, architecture = find_option(args, "-t", 1)
     output, output_file = find_option(args, "-o", 1)
+    compiler.debug = find_option(args, "-d", 0)
     
     if not 1 <= len(args) <= 2 or not target:
         sys.stderr.write(
             "Usage: %s <program file> [<manifest file>] -t <target> -o <output file>\n\n"
             "-t    Generate code for the specified <target> architecture.\n"
-            "-o    Write the generated code to the specified <output file>.\n\n" % this_program)
+            "-o    Write the generated code to the specified <output file>.\n"
+            "-d    Write debugging information to stdout.\n\n" % this_program)
         sys.exit(1)
     
     input_file = args.pop(0)

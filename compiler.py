@@ -45,7 +45,9 @@ functions = []
 in_function = False
 
 def debug_print(*args):
-    return
+    global debug
+    if not debug:
+        return
     for arg in args:
         print arg,
     print
@@ -1387,13 +1389,15 @@ if __name__ == "__main__":
     run = find_option(args, "-r", 0)
     target, architecture = find_option(args, "-t", 1)
     output, file_name = find_option(args, "-o", 1)
+    debug = find_option(args, "-d", 0)
     
     if len(args) != 1 or (not target and not run):
         sys.stderr.write(
             "Usage: %s [-r] [-t <target>] <file> [-o <output file>]\n\n"
             "-r    Run the generated code in a simulator.\n"
             "-t    Generate code for the specified <target> architecture.\n"
-            "-o    Write the generated code to the specified <output file>.\n\n" % this_program)
+            "-o    Write the generated code to the specified <output file>.\n"
+            "-d    Write debugging information to stdout.\n\n" % this_program)
         sys.exit(1)
     
     stream = open(args[0])
