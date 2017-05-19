@@ -222,8 +222,8 @@ level.
 Virtual Machine Instructions
 ----------------------------
 
-Instruction                 Operands (byte-sized)   Arguments on the stack (top is last)
-----------------------------------------------------------------------------------------
+Instruction                 Operands (byte-sized)                   Arguments on the stack (top is last)
+--------------------------------------------------------------------------------------------------------
 load_number                         <size>, size * <value>          -
 load_byte                           <value>                         -
 compare_equals                      <size>                          size * <value1>, size * <value2>
@@ -249,9 +249,9 @@ minus                               <size>                          size * <valu
 bitwise_and                         <size>                          size * <value1>, size * <value2>
 bitwise_and_byte                    -                               <value1>, <value2>
 bitwise_and_byte_constant           <value2>                        <value1>
-bitwise_or                         <size>                           size * <value1>, size * <value2>
-bitwise_or_byte                    -                                <value1>, <value2>
-bitwise_or_byte_constant           <value2>                         <value1>
+bitwise_or                          <size>                          size * <value1>, size * <value2>
+bitwise_or_byte                     -                               <value1>, <value2>
+bitwise_or_byte_constant            <value2>                        <value1>
 bitwise_eor                         <size>                          size * <value1>, size * <value2>
 bitwise_eor_byte                    -                               <value1>, <value2>
 bitwise_eor_byte_constant           <value2>                        <value1>
