@@ -480,9 +480,9 @@ add:
     ldy #0
     add_loop:
 
-        lda (ptr1),y
-        adc (ptr2),y
-        sta (ptr1),y
+        lda (ptr1),y    ; ### Store and retrieve the flags on each iteration.
+        adc (ptr2),y    ; ### C may be preserved in any case because only the
+        sta (ptr1),y    ; ### adc instruction modifies it.
 
         iny
         dex
