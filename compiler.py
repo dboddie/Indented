@@ -44,6 +44,9 @@ current_array = False
 functions = []
 in_function = False
 
+# Debugging
+debug = False
+
 def debug_print(*args):
     global debug
     if not debug:
@@ -894,55 +897,51 @@ def parse_operation(stream):
         raise SyntaxError, "Sizes of operands do not match at line %i." % tokeniser.line
     
     if token == "==":
-        debug_print("equals", token)
+        debug_print("equals", token, current_size)
         generator.generate_equals(current_size)
         current_size = current_element_size = 1
         current_array = False
     
     elif token == "!=":
-        debug_print("not equals", token)
+        debug_print("not equals", token, current_size)
         generator.generate_not_equals(current_size)
         current_size = current_element_size = 1
         current_array = False
     
     elif token == "<":
-        debug_print("less than", token)
+        debug_print("less than", token, current_size)
         generator.generate_less_than(current_size)
         current_size = current_element_size = 1
         current_array = False
     
     elif token == ">":
-        debug_print("greater than", token)
+        debug_print("greater than", token, current_size)
         generator.generate_greater_than(current_size)
         current_size = current_element_size = 1
         current_array = False
     
     elif token == "+":
-        debug_print("add", token)
+        debug_print("add", token, current_size)
         generator.generate_add(current_size)
-        current_array = False
     
     elif token == "-":
-        debug_print("subtract", token)
+        debug_print("subtract", token, current_size)
         generator.generate_subtract(current_size)
-        current_array = False
     
     elif token == "*":
-        debug_print("multiply", token)
+        debug_print("multiply", token, current_size)
         generator.generate_multiply(current_size)
-        current_array = False
     
     elif token == "/":
-        debug_print("divide", token)
+        debug_print("divide", token, current_size)
         generator.generate_divide(current_size)
-        current_array = False
     
     elif token == "and":
     
         if current_size != 1:
             raise SyntaxError, "Operands have an invalid size for logical and operation at line %i." % tokeniser.line
         
-        debug_print("and", token)
+        debug_print("and", token, current_size)
         generator.generate_logical_and()
         current_size = current_element_size = 1
         current_array = False
@@ -952,7 +951,7 @@ def parse_operation(stream):
         if current_size != 1:
             raise SyntaxError, "Operands have an invalid size for logical or operation at line %i." % tokeniser.line
         
-        debug_print("or", token)
+        debug_print("or", token, current_size)
         generator.generate_logical_or()
         current_size = current_element_size = 1
         current_array = False
@@ -962,21 +961,18 @@ def parse_operation(stream):
     
     elif token == "&":
     
-        debug_print("&", token)
+        debug_print("&", token, current_size)
         generator.generate_bitwise_and(size1, current_size)
-        current_array = False
     
     elif token == "|":
     
-        debug_print("|", token)
+        debug_print("|", token, current_size)
         generator.generate_bitwise_or(size1, current_size)
-        current_array = False
     
     elif token == "^":
     
-        debug_print("^", token)
+        debug_print("^", token, current_size)
         generator.generate_bitwise_eor(size1, current_size)
-        current_array = False
     
     # The shift operators are also asymmetric, with the second operand
     # typically being only a single byte, but the result is the same size as
@@ -987,9 +983,8 @@ def parse_operation(stream):
         if current_size != opcodes.shift_size:
             raise SyntaxError, "Invalid size for shift at line %i." % tokeniser.line
         
-        debug_print("<<", token)
+        debug_print("<<", token, current_size)
         current_size = current_element_size = size1
-        current_array = False
         generator.generate_left_shift(current_size)
     
     elif token == ">>":
@@ -997,9 +992,8 @@ def parse_operation(stream):
         if current_size != opcodes.shift_size:
             raise SyntaxError, "Invalid size for shift at line %i." % tokeniser.line
         
-        debug_print(">>", token)
+        debug_print(">>", token, current_size)
         current_size = current_element_size = size1
-        current_array = False
         generator.generate_right_shift(current_size)
     
     return True
