@@ -1,26 +1,26 @@
 def mode number (byte)
-    _call(0xffee 22)
-    _call(0xffee number)
+    _call(0xffee, 22)
+    _call(0xffee, number)
 
 def cursor_off
-    _call(0xffee 23)
-    _call(0xffee 1)
+    _call(0xffee, 23)
+    _call(0xffee, 1)
     i = 0
     while i < 8
-        _call(0xffee 0)
+        _call(0xffee, 0)
         i = i + 1
 
 def vsync
-    _call(0xfff4 19)
+    _call(0xfff4, 19)
 
 def check_key key (int8)
-    if _call(0xfff4 129 key 255) == 0xffff8101
+    if _call(0xfff4, 129, key, 255) == 0xffff8101
         return True
     else
         return False
 
 def oscli command_addr (int16)
-    _call(0xfff7 0 (command_addr & 0xff) (command_addr >> 8) & 0xff)
+    _call(0xfff7, 0, (command_addr & 0xff), (command_addr >> 8) & 0xff)
 
 def load
     # Load sprites
@@ -38,7 +38,7 @@ cursor_off()
 
 x = 2
 y = 31
-_call(0x4000 1 x y)
+_call(0x4000, 1, x, y)
 
 bullets_x = "\xff\xff\xff"
 bullets_y = "\xff\xff\xff"
@@ -81,7 +81,7 @@ while True
         if (bullets_y[bullet] == 255) and (fired == 0)
             bullets_y[bullet] = y
             bullets_x[bullet] = x + 2
-            _call(0x4000 2 x + 2 y)
+            _call(0x4000, 2, x + 2, y)
             
             bullet = bullet + 1
             if bullet == 3
@@ -91,8 +91,8 @@ while True
 
     vsync()
     if moved
-        _call(0x4000 0 x y)
-        _call(0x4000 1 new_x new_y)
+        _call(0x4000, 0, x, y)
+        _call(0x4000, 1, new_x, new_y)
         x = new_x
         y = new_y
 
@@ -101,10 +101,10 @@ while True
         by = bullets_y[i]
         if by != 255
             bx = bullets_x[i]
-            _call(0x4000 0 bx by)
+            _call(0x4000, 0, bx, by)
             bx = bx + 2
             if bx < 39
-                _call(0x4000 2 bx by)
+                _call(0x4000, 2, bx, by)
                 bullets_x[i] = bx
             else
                 bullets_y[i] = 255
@@ -120,7 +120,7 @@ while True
         enemies_x[next_enemy] = 38
         ey = 32 + next_enemy
         enemies_y[next_enemy] = ey
-        _call(0x4000 3 38 ey)
+        _call(0x4000, 3, 38, ey)
         next_enemy = (next_enemy + 1) & 7
 
     i = 0
@@ -129,9 +129,9 @@ while True
         ey = enemies_y[i]
         if ey != 255
             ex = enemies_x[i]
-            _call(0x4000 0 ex ey)
+            _call(0x4000, 0, ex, ey)
             if ex > 1
-                _call(0x4000 3 ex - 1 ey)
+                _call(0x4000, 3, ex - 1, ey)
                 enemies_x[i] = ex - 1
             else
                 enemies_y[i] = 255
