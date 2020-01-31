@@ -1,0 +1,7 @@
+# Add the ASCII elements in two strings together to create a string containing
+# "String".
+s = "STRING" + "\x00     "
+i = 0
+while i < 6
+    _call(0xffee, s[i]) # VDU
+    i = i + 1
