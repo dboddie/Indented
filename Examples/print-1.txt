@@ -1,0 +1,19 @@
+def vdu n (byte)
+    _call(0xffee, n)
+
+def print n (byte)
+    c = 0
+    while n > 100
+        n = n - 100
+        c = c + 1
+
+    vdu(48 + c)
+    c = 0
+    while n > 10
+        n = n - 10
+        c = c + 1
+
+    vdu(48 + c)
+    vdu(48 + n)
+
+print(123)
