@@ -45,11 +45,14 @@ _run:
     lda #program_start_high
     sta [program_counter + 1]
 
+    ; Initialise the call stack pointer. The call stack expands upwards.
     lda #<_stack
     sta call_stack_pointer
     lda #>_stack
     sta [call_stack_pointer + 1]
 
+    ; Value stack, a series of frames containing local variables and function
+    ; arguments. This is placed above the call stack, limiting its size.
     lda #<_stack
     adc #32
     sta current_frame

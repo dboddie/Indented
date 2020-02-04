@@ -170,7 +170,9 @@ a return statement.
 For strings, but certainly for arrays, it would be useful to avoid passing them
 by value, so the opcodes for loading strings and arrays could just push their
 addresses onto the stack. This would also make it possible to use arrays with
-system calls.
+system calls. If strings are allocated on a heap then their sizes could be
+changed. Anything that refers to the string should refer to its address entry
+so that the address can be changed as objects are moved around on the heap.
 
 
 Types and Interfaces
