@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import pprint, string, sys
+import os, pprint, string, sys
 import generator, opcodes, simulator, tokeniser
 from tokeniser import read_token
 from arguments import find_option
@@ -43,6 +43,10 @@ current_array = False
 
 functions = []
 in_function = False
+
+# Include directory
+
+include_dir = ""
 
 # Debugging
 debug = False
@@ -821,6 +825,46 @@ def parse_function_call(stream):
     
     return True
 
+def parse_include(stream):
+
+    # include <string>
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != "include":
+        put_tokens(top)
+        return False
+    
+    token = get_token(stream)
+    
+    if not is_string(token):
+        put_tokens(top)
+        return False
+    
+    if not parse_separator(stream):
+        put_tokens(top)
+        return False
+    
+    # Read and tokenise the contents of the file.
+    file_name = decode_string(token)
+    
+    if file_name.startswith("<") and file_name.endswith(">"):
+        file_name = os.path.join(include_dir, file_name[1:-1])
+    
+    try:
+        f = open(file_name)
+    except IOError:
+        raise IOError("Failed to include file '%s' at line %i." % (
+            file_name, tokeniser.line))
+    
+    state = tokeniser.save_state()
+    print "Including", file_name
+    parse_program_definitions(f)
+    tokeniser.restore_state(state)
+    
+    return True    
+
 def parse_indent(stream):
 
     top = len(used)
@@ -1006,14 +1050,7 @@ def parse_program(stream, base_address):
     
     top = len(used)
     
-    while tokeniser.at_eof == False:
-    
-        if parse_definition(stream):
-            discard_tokens()
-            debug_print("definition")
-        else:
-            put_tokens(top)
-            break
+    parse_program_definitions(stream)
     
     # Insert code to reserve space for variables.
     start_address = len(generator.code)
@@ -1042,6 +1079,27 @@ def parse_program(stream, base_address):
     generator.code[start_address + 1] = total_variable_size(local_variables)
     
     return generator.base_address + start_address
+
+# This function is used by parse_program and parse_include.
+
+def parse_program_definitions(stream):
+
+    top = len(used)
+    
+    while tokeniser.at_eof == False:
+    
+        if parse_definition(stream):
+            discard_tokens()
+            debug_print("definition")
+        elif parse_separator(stream):
+            # Handle blank lines.
+            discard_tokens()
+            debug_print("separator (blank)")
+        elif parse_include(stream):
+            debug_print("include")
+        else:
+            put_tokens(top)
+            break
 
 def parse_return(stream):
 
@@ -1393,6 +1451,8 @@ if __name__ == "__main__":
             "-o    Write the generated code to the specified <output file>.\n"
             "-d    Write debugging information to stdout.\n\n" % this_program)
         sys.exit(1)
+    
+    include_dir = os.path.join(os.path.split(this_program)[0], "include", architecture)
     
     stream = open(args[0])
     

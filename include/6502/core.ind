@@ -1,0 +1,4 @@
+# Standard library functions - 6502 implementation
+
+def emit n (byte)
+    _call(0xffee, n)

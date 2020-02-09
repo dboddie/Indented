@@ -84,6 +84,8 @@ if __name__ == "__main__":
             "-d    Write debugging information to stdout.\n\n" % this_program)
         sys.exit(1)
     
+    compiler.include_dir = os.path.join(os.path.split(this_program)[0], "include", architecture)
+    
     input_file = args.pop(0)
     if args:
         manifest_file = args.pop(0)

@@ -28,6 +28,8 @@ in_comment = False
 in_string = False
 at_eof = False
 
+states = []
+
 indent_token = "\ti"
 dedent_token = "\td"
 newline_token = "\n"
@@ -185,6 +187,19 @@ def end_statement():
     newline = True
     in_comment = False
     in_string = False
+
+def save_state():
+
+    states.append((line, newline, indent, indent_stack, pending_token,
+                   in_comment, in_string, at_eof))
+
+def restore_state(state):
+
+    global at_eof, in_comment, in_string, indent, indent_stack, line, newline
+    global pending_token
+    
+    (line, newline, indent, indent_stack, pending_token, in_comment, in_string,
+     at_eof) = states.pop()
 
 
 if __name__ == "__main__":
