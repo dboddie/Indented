@@ -220,6 +220,13 @@ multiple objects using relative positions within the frame in order to reduce
 the amount of management work when reclaiming space within a heap at a low
 level.
 
+Another approach would be to allocate space for a table of address entries
+that refer to objects in the heap. Variables in the program reference the
+objects via addresses in these slots, but these addresses cannot be moved in
+the table. The memory allocated for this table of addresses could be a problem
+if it is fixed in size. However, it could be placed in a region where it could
+expand as required. It could even be co-located with the heap itself and any
+nearby objects in the heap could be moved if table needs to take more space.
 
 Virtual Machine Instructions
 ----------------------------
