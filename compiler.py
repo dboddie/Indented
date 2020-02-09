@@ -59,13 +59,6 @@ def debug_print(*args):
         print arg,
     print
 
-# System call definitions
-
-system_call_parameters = [("address", opcodes.address_size),
-                          ("A", opcodes.register_size),
-                          ("X", opcodes.register_size),
-                          ("Y", opcodes.register_size)]
-
 # Constant and type handling
 
 types = {"byte": 1, "int8": 1, "int16": 2, "int32": 4,
@@ -416,6 +409,9 @@ def parse_body(stream):
     
     debug_print("body")
     return True
+
+# This function tries to parse tokens as a built-in call.
+# Currently, it only supports the _addr function.
 
 def parse_builtin_call(stream):
 
@@ -1261,81 +1257,12 @@ def parse_statement(stream):
     
     return True
 
+# This function delegates the task of parsing system calls to the architecture
+# specific parsing functions.
+
 def parse_system_call(stream):
 
-    '<system call> = _call "(" <address> [<A> [<X> [<Y>]]] ")"'
-    
-    global current_size, current_element_size, current_array
-    
-    top = len(used)
-    token = get_token(stream)
-    
-    if token != tokeniser.system_call_token:
-        put_tokens(top)
-        return False
-    
-    token = get_token(stream)
-    if token != tokeniser.arguments_begin_token:
-        raise SyntaxError, "Arguments must follow '(' at line %i.\n" % tokeniser.line
-    
-    # Parse the arguments corresponding to the system call parameters.
-    # These take the form <address> <A> <X> <Y>.
-    
-    total_args_size = 0
-    
-    i = 0
-    while i < len(system_call_parameters):
-    
-        name, size = system_call_parameters[i]
-        
-        top = len(used)
-        token = get_token(stream)
-        
-        if token == tokeniser.arguments_end_token:
-            # If we encounter a closing parenthesis, check that at least the
-            # address has been given.
-            if name != "address":
-                # Recover the token and break.
-                put_tokens(top)
-                break
-            else:
-                raise SyntaxError, "System call lacks an address at line %i.\n" % tokeniser.line
-        else:
-            # Recover the token.
-            put_tokens(top)
-        
-        if i > 0:
-            token = get_token(stream)
-            if token != ",":
-                raise SyntaxError, "Expected a comma before system call argument '%s' at line %i.\n" % (name, tokeniser.line)
-        
-        if not parse_expression(stream):
-            raise SyntaxError, "Invalid system call argument for parameter '%s' at line %i.\n" % (name, tokeniser.line)
-        
-        if current_size != size:
-            raise SyntaxError, "Incompatible types in system call argument for parameter '%s' at line %i.\n" % (name, tokeniser.line)
-        
-        total_args_size += size
-        
-        i += 1
-    
-    token = get_token(stream)
-    if token != tokeniser.arguments_end_token:
-        raise SyntaxError, "Arguments must be terminated with ')' at line %i.\n" % tokeniser.line
-    
-    debug_print("system call")
-    
-    # Call the system routine with the total size of the arguments supplied.
-    # This enables the generated code to retrieve the arguments from the stack.
-    
-    generator.generate_system_call(total_args_size)
-    
-    # Set the size of the return value to ensure that it is assigned or
-    # discarded as necessary.
-    current_size = current_element_size = opcodes.system_call_return_size
-    current_array = False
-    
-    return True
+    return parsing.parse_system_call(stream)
 
 def parse_value(stream):
 
@@ -1457,7 +1384,7 @@ if __name__ == "__main__":
     stream = open(args[0])
     
     if architecture == "6502":
-        from arch._6502 import linker
+        from arch._6502 import linker, parsing
         program_address = linker.get_program_address()
     elif run:
         program_address = 0

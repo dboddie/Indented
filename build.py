@@ -95,7 +95,8 @@ if __name__ == "__main__":
     stream = open(input_file)
     
     if architecture == "6502":
-        from arch._6502 import linker
+        from arch._6502 import linker, parsing
+        compiler.parsing = parsing
         program_address = linker.get_program_address()
     else:
         sys.stderr.write("Unknown target architecture specified: %s\n" % architecture)
