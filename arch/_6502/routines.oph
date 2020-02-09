@@ -1525,14 +1525,19 @@ _calculate_array_element_address:   ; Returns temp+2:temp+3=address of element
     rts
 
 end:
-    lda #69
-    jsr $ffee
-    lda #78
-    jsr $ffee
-    lda #68
-    jsr $ffee
+    ldx #0
+    end_loop:
+        lda end_text,x
+        jsr $ffee
+        inx
+        cpx #[end_text_end - end_text]
+        bne end_loop
+
     clc
     rts
+
+    end_text: .byte 13, 10, "End", 13, 10
+    end_text_end:
 
 ; The opcodes for the program are included before the routines because the
 ; size of the support routines are not necessarily known when the program is
