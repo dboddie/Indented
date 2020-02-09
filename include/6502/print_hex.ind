@@ -1,0 +1,19 @@
+include "<core.ind>"
+
+def print_hex n (byte)
+
+    emit(48)
+    emit(120)
+
+    i = 8
+    while i > 0
+
+        v = (n & 0xf0) >> 4
+
+        if v > 9
+            emit(55 + v)
+        else
+            emit(48 + v)
+
+        n = n << 4
+        i = i - 4

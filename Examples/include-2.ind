@@ -1,0 +1,3 @@
+include "<print_hex.ind>"
+
+print_hex(123)
