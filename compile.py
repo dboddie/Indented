@@ -5,23 +5,6 @@ import compiler, generator, simulator, tokeniser
 from arguments import find_option
 
 
-def save_opcodes(file_name):
-
-    f = open(file_name, "wb")
-    f.write("".join(map(chr, map(lambda x: x & 0xff, generator.code))))
-    f.close()
-
-def get_opcodes_used():
-
-    d = {}
-    
-    for v in generator.code:
-        if v > 255:
-            d[v] = d.get(v, 0) + 1
-    
-    return d
-
-
 if __name__ == "__main__":
 
     this_program, args = sys.argv[0], sys.argv[1:]
@@ -72,7 +55,7 @@ if __name__ == "__main__":
         addr += 1
     
     print "Opcode usage:"
-    d = get_opcodes_used()
+    d = compiler.get_opcodes_used()
     freq = map(lambda (k, v): (v, k), d.items())
     freq.sort()
     for v, k in freq:
@@ -85,4 +68,4 @@ if __name__ == "__main__":
         print simulator.run(start_address)
     
     if output:
-        save_opcodes(file_name)
+        compiler.save_opcodes(file_name)

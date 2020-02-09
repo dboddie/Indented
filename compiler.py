@@ -1342,3 +1342,19 @@ def parse_variable(stream):
     
     put_tokens(top)
     return False
+
+def save_opcodes(file_name):
+
+    f = open(file_name, "wb")
+    f.write("".join(map(chr, map(lambda x: x & 0xff, generator.code))))
+    f.close()
+
+def get_opcodes_used():
+
+    d = {}
+    
+    for v in generator.code:
+        if v > 255:
+            d[v] = d.get(v, 0) + 1
+    
+    return d
