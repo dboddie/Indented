@@ -216,4 +216,3 @@ def link(program_opcodes, program_address, start_address, routines_used,
     except UEFfile.UEFfile_error:
         sys.stderr.write("Couldn't write the new executable to %s.\n" % output_file)
         sys.exit(1)
-    
