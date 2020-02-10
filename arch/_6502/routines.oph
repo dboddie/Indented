@@ -1455,6 +1455,40 @@ store_array_byte_value:
     sta (temp),y
     jmp next_instruction
 
+store_memory_value:
+
+    jsr _get_operand        ; Get the size of the number in bytes.
+    sta size
+
+    jsr _pop_bytes          ; Pop the top two bytes on the stack into A,X.
+    sta temp                ; Store the bytes in zero page to use as an address.
+    stx [temp + 1]
+
+    store_memory_value_loop:
+
+        dec size
+        jsr _pop_byte               ; Pop the bytes with the highest first,
+
+        ldy size
+        sta (temp),y                ; storing them into memory.
+
+        cpy #0
+        bne store_memory_value_loop
+
+    rts
+
+store_memory_byte_value:
+
+    jsr _pop_bytes          ; Pop the top two bytes on the stack into A,X.
+    sta temp                ; Store the bytes in zero page to use as an address.
+    stx [temp + 1]
+
+    ldy #0
+    jsr _pop_byte           ; Pop the value.
+    sta (temp),y            ; Store the byte into memory.
+
+    rts
+
 _calculate_array_element_address:   ; Returns temp+2:temp+3=address of element
                                     ;         size=element size
                                     ;         temp=index size

@@ -721,6 +721,12 @@ def store_array_byte_value():
     
     _free_stack_space(2)
 
+def store_memory_value():
+    pass
+
+def store_memory_byte_value():
+    pass
+
 def end():
 
     raise StopIteration
@@ -784,6 +790,8 @@ lookup = {
     opcodes.load_array_byte_value: load_array_byte_value,
     opcodes.store_array_value: store_array_value,
     opcodes.store_array_byte_value: store_array_byte_value,
+    opcodes.store_memory_value: store_memory_value,
+    opcodes.store_memory_byte_value: store_memory_byte_value,
     opcodes.end: end
     }
 

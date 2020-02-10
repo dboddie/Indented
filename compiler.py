@@ -408,11 +408,20 @@ def parse_body(stream):
     return True
 
 # This function tries to parse tokens as a built-in call.
-# Currently, it only supports the _addr function.
+# Currently, it only supports the _addr and _store functions.
 
 def parse_builtin_call(stream):
 
-    '<built-in call> = "_addr" "(" [<argument>+] ")"'
+    if parse_builtin_call_addr(stream):
+        return True
+    elif parse_builtin_call_store(stream):
+        return True
+    else:
+        return False
+
+def parse_builtin_call_addr(stream):
+
+    '<built-in _addr> = "_addr" "(" <variable> ")"'
     
     global current_size, current_element_size, current_array
     
@@ -447,6 +456,52 @@ def parse_builtin_call(stream):
     # Set the size of the return value to ensure that it is assigned or
     # discarded as necessary.
     current_size = current_element_size = opcodes.address_size
+    current_array = False
+    
+    return True
+
+def parse_builtin_call_store(stream):
+
+    '<built-in _store> = "_store" "(" <value expression>, <address expression> ")"'
+    
+    global current_size, current_element_size, current_array
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != "_store":
+        put_tokens(top)
+        return False
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_begin_token:
+        raise SyntaxError, "Arguments must follow '(' at line %i.\n" % tokeniser.line
+    
+    # Parse the value.
+    if not parse_expression(stream):
+        raise SyntaxError, "Argument must be a valid expression at line %i.\n" % tokeniser.line
+    
+    size = current_size
+    
+    token = get_token(stream)
+    if token != ",":
+        raise SyntaxError("Expected a comma before the address at line %i.\n" % tokeniser.line)
+    
+    # Parse the address.
+    if not parse_expression(stream):
+        raise SyntaxError, "Argument must be a valid expression at line %i.\n" % tokeniser.line
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_end_token:
+        raise SyntaxError, "Arguments must be terminated with ')' at line %i.\n" % tokeniser.line
+    
+    debug_print("store call")
+    
+    generator.generate_store_memory_value(size)
+    
+    # Set the size of the return value to ensure that it is assigned or
+    # discarded as necessary.
+    current_size = current_element_size = 0
     current_array = False
     
     return True
