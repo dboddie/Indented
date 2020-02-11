@@ -491,6 +491,9 @@ def parse_builtin_call_store(stream):
     if not parse_expression(stream):
         raise SyntaxError, "Argument must be a valid expression at line %i.\n" % tokeniser.line
     
+    if current_size != opcodes.address_size:
+        raise SyntaxError, "Address argument must have the size of an address at line %i.\n" % tokeniser.line
+    
     token = get_token(stream)
     if token != tokeniser.arguments_end_token:
         raise SyntaxError, "Arguments must be terminated with ')' at line %i.\n" % tokeniser.line
