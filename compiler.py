@@ -136,6 +136,7 @@ def is_number(token):
 def number_size(token):
 
     base = get_number_base(token)
+    
     if base == 16:
         start = token.find("0x")
         digits = len(token) - start - 2
@@ -247,7 +248,7 @@ def find_local_variable(token):
     index = 0
     for name, size, element_size, array in local_variables:
         if name == token:
-            debug_print("local variable", token)
+            debug_print("local variable", token, size, element_size, array)
             return index
         index += 1
     
@@ -340,6 +341,13 @@ def put_tokens(index):
     used[:] = used[:index]
     #print_tokens()
 
+def peek_token(stream):
+
+    top = len(used)
+    token = get_token(stream)
+    put_tokens(top)
+    return token
+
 def discard_tokens():
 
     used[:] = []
@@ -408,11 +416,13 @@ def parse_body(stream):
     return True
 
 # This function tries to parse tokens as a built-in call.
-# Currently, it only supports the _addr and _store functions.
+# Currently, it only supports the _addr, _load and _store functions.
 
 def parse_builtin_call(stream):
 
     if parse_builtin_call_addr(stream):
+        return True
+    elif parse_builtin_call_load(stream):
         return True
     elif parse_builtin_call_store(stream):
         return True
@@ -456,6 +466,57 @@ def parse_builtin_call_addr(stream):
     # Set the size of the return value to ensure that it is assigned or
     # discarded as necessary.
     current_size = current_element_size = opcodes.address_size
+    current_array = False
+    
+    return True
+
+def parse_builtin_call_load(stream):
+
+    '<built-in _store> = "_load" "(" <value expression>, <address expression> ")"'
+    
+    global current_size, current_element_size, current_array
+    
+    top = len(used)
+    token = get_token(stream)
+    
+    if token != "_load":
+        put_tokens(top)
+        return False
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_begin_token:
+        raise SyntaxError, "Arguments must follow '(' at line %i.\n" % tokeniser.line
+    
+    # Parse the size.
+    token = get_token(stream)
+    if not is_number(token):
+        raise SyntaxError, "Argument must be a constant integer at line %i.\n" % tokeniser.line
+    
+    base = get_number_base(token)
+    size = int(token, base)
+    
+    token = get_token(stream)
+    if token != ",":
+        raise SyntaxError("Expected a comma before the address at line %i.\n" % tokeniser.line)
+    
+    # Parse the address.
+    if not parse_expression(stream):
+        raise SyntaxError, "Argument must be a valid expression at line %i.\n" % tokeniser.line
+    
+    if current_size != opcodes.address_size:
+        raise SyntaxError, "Address argument must have the size of an address at line %i.\n" % tokeniser.line
+    
+    token = get_token(stream)
+    if token != tokeniser.arguments_end_token:
+        raise SyntaxError, "Arguments must be terminated with ')' at line %i.\n" % tokeniser.line
+    
+    debug_print("load call")
+    
+    generator.generate_load_memory_value(size)
+    
+    # Set the size of the return value to ensure that it is assigned or
+    # discarded as necessary.
+    current_size = current_element_size = size
     current_array = False
     
     return True
@@ -1328,8 +1389,8 @@ def parse_value(stream):
     token = get_token(stream)
     
     if is_number(token):
-        debug_print("constant", token)
         size = get_size(token)
+        debug_print("constant", token, size)
         base = get_number_base(token)
         generator.generate_number(token, size, base)
     

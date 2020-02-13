@@ -75,9 +75,11 @@ load_array_value, \
 load_array_byte_value, \
 store_array_value, \
 store_array_byte_value, \
+load_memory_value, \
+load_memory_byte_value, \
 store_memory_value, \
 store_memory_byte_value, \
-end = range(256, 256 + 61)
+end = range(256, 256 + 63)
 
 address_size = 2
 branch_size = 1

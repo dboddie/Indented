@@ -1524,6 +1524,43 @@ _calculate_array_element_address:   ; Returns temp+2:temp+3=address of element
 
     rts
 
+load_memory_value:
+
+    jsr _get_operand        ; Get the size of the number in bytes.
+    sta size
+
+    jsr _pop_bytes          ; Pop the top two bytes on the stack into A,X.
+    sta ptr1                ; Store the bytes in zero page to use as an address.
+    stx [ptr1 + 1]
+
+    ldy #0                  ; Push the lowest bytes first.
+    sty temp
+
+    load_memory_value_loop:
+
+        lda (ptr1),y        ; Load each byte from memory.
+
+        jsr _push_byte
+
+        inc temp
+        ldy temp
+        cpy size
+        bne load_memory_value_loop
+
+    jmp next_instruction
+
+load_memory_byte_value:
+
+    jsr _pop_bytes          ; Pop the top two bytes on the stack into A,X.
+    sta ptr1                ; Store the bytes in zero page to use as an address.
+    stx [ptr1 + 1]
+
+    ldy #0
+    lda (ptr1),y            ; Load the byte from memory.
+    jsr _push_byte          ; Push the value onto the stack.
+
+    jmp next_instruction
+
 store_memory_value:
 
     jsr _get_operand        ; Get the size of the number in bytes.
