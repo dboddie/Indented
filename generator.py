@@ -398,9 +398,9 @@ def generate_store_array_value(offset, size, index_size):
 
     global code
     if index_size > 1 or size > 1:
-        code += [store_memory_value, offset, index_size, size]
+        code += [store_array_value, offset, index_size, size]
     else:
-        code += [store_memory_byte_value, offset]
+        code += [store_array_byte_value, offset]
 
 def generate_load_memory_value(size):
 
