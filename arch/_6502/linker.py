@@ -91,23 +91,28 @@ def write_lookup_tables(f, names):
     for name in names:
         f.write(".byte >[%s - 1]\n" % name)
 
-def save_opcodes_oph(file_name_or_obj, start_address, program_opcodes):
+def write_opcodes(f, opcodes):
+
+    i = 0
+    while i < len(opcodes):
+        line = []
+        for opcode in opcodes[i:i + 24]:
+            line.append(opcode & 0xff)
+        f.write(".byte " + ", ".join(map(str, line)) + "\n")
+        i += 24
+
+def save_opcodes_oph(file_name_or_obj, program_address, start_address,
+                     program_opcodes):
 
     if isinstance(file_name_or_obj, file):
         f = file_name_or_obj
     else:
         f = open(file_name_or_obj, "w")
     
-    i = 0
-    while i < len(program_opcodes):
-        opcodes = []
-        for opcode in program_opcodes[i:i + 24]:
-            opcodes.append(opcode & 0xff)
-        f.write(".byte " + ", ".join(map(str, opcodes)) + "\n")
-        i += 24
-    
-    f.write(".alias program_start_low  $%02x\n" % (start_address & 0xff))
-    f.write(".alias program_start_high $%02x\n" % (start_address >> 8))
+    write_opcodes(f, program_opcodes[:start_address - program_address])
+    f.write("; address = $%x\n" % start_address)
+    f.write("program_start:\n")
+    write_opcodes(f, program_opcodes[start_address - program_address:])
     f.write("\n")
     
     if not isinstance(file_name_or_obj, file):
@@ -126,7 +131,7 @@ def link(program_opcodes, program_address, start_address, routines_used,
     
     # Write the opcodes used in the program to the output file.
     f.write("program:\n")
-    save_opcodes_oph(f, start_address, program_opcodes)
+    save_opcodes_oph(f, program_address, start_address, program_opcodes)
     
     # Write the routines corresponding to the opcodes and lookup tables for them.
     write_routines(f, routines, routines_used)
