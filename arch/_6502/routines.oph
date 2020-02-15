@@ -38,11 +38,13 @@
 .alias branch_size 1
 .alias shift_size 1
 
+.alias _value_stack [_stack + 32]
+
 _run:
 
-    lda #program_start_low
+    lda #<program_start
     sta program_counter
-    lda #program_start_high
+    lda #>program_start
     sta [program_counter + 1]
 
     ; Initialise the call stack pointer. The call stack expands upwards.
@@ -52,13 +54,12 @@ _run:
     sta [call_stack_pointer + 1]
 
     ; Value stack, a series of frames containing local variables and function
-    ; arguments. This is placed above the call stack, limiting its size.
-    lda #<_stack
-    adc #32
+    ; arguments. This is placed above the call stack, limiting the amount of
+    ; recursion.
+    lda #<_value_stack
     sta current_frame
     sta stack_pointer
-    lda #>_stack
-    adc #0
+    lda #>_value_stack
     sta [current_frame + 1]
     sta [stack_pointer + 1]
     clc
@@ -1057,7 +1058,47 @@ load_local_byte:
 load_global:
 
     jsr _get_operand
+    sta offset
     jsr _get_operand
+    sta size
+
+    lda #<_value_stack
+    adc offset
+    sta ptr1
+    lda #>_value_stack
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    ldy #0
+    load_global_loop:
+
+        lda (ptr1),y
+        sta (stack_pointer),y
+        iny
+        cpy size
+        bne load_global_loop
+
+    clc
+    lda size
+    jsr _allocate_stack_space
+
+    jmp next_instruction
+
+load_global_byte:
+
+    jsr _get_operand
+
+    adc #<_value_stack
+    sta ptr1
+    lda #>_value_stack
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    ldy #0
+    lda (ptr1),y
+    jsr _push_byte
     jmp next_instruction
 
 assign_local:
@@ -1101,6 +1142,53 @@ assign_local_byte:
     adc current_frame
     sta ptr1
     lda [current_frame + 1]
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    jsr _pop_byte
+    ldy #0
+    sta (ptr1),y
+    jmp next_instruction
+
+assign_global:
+
+    jsr _get_operand
+    sta offset
+    jsr _get_operand
+    sta size
+
+    lda #<_value_stack
+    adc offset
+    sta ptr1
+    lda #>_value_stack
+    adc #0
+    sta [ptr1 + 1]
+    clc
+
+    jsr _set_ptr2
+
+    ldy #0
+    assign_global_loop:
+
+        lda (ptr2),y
+        sta (ptr1),y
+        iny
+        cpy size
+        bne assign_global_loop
+
+    clc
+    lda size
+    jsr _free_stack_space
+    jmp next_instruction
+
+assign_global_byte:
+
+    jsr _get_operand
+
+    adc #<_value_stack
+    sta ptr1
+    lda #>_value_stack
     adc #0
     sta [ptr1 + 1]
     clc

@@ -286,7 +286,10 @@ def generate_load_local(offset, size):
 def generate_load_global(offset, size):
 
     global code
-    code += [load_global, offset, size]
+    if size > 1:
+        code += [load_global, offset, size]
+    else:
+        code += [load_global_byte, offset]
 
 def generate_assign_local(offset, size):
 
@@ -299,7 +302,10 @@ def generate_assign_local(offset, size):
 def generate_assign_global(offset, size):
 
     global code
-    code += [assign_global, offset, size]
+    if size > 1:
+        code += [assign_global, offset, size]
+    else:
+        code += [assign_global_byte, offset]
 
 def generate_discard_value(size):
 

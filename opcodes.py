@@ -59,8 +59,11 @@ jump, \
 load_local, \
 load_local_byte, \
 load_global, \
+load_global_byte, \
 assign_local, \
 assign_local_byte, \
+assign_global, \
+assign_global_byte, \
 function_return, \
 function_call, \
 load_current_frame_address, \
@@ -79,7 +82,7 @@ load_memory_value, \
 load_memory_byte_value, \
 store_memory_value, \
 store_memory_byte_value, \
-end = range(256, 256 + 63)
+end = range(256, 256 + 66)
 
 address_size = 2
 branch_size = 1

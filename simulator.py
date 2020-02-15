@@ -499,6 +499,10 @@ def load_global():
     offset = get_operand()
     size = get_operand()
 
+def load_global_byte():
+
+    offset = get_operand()
+
 def assign_local():
 
     global stack_pointer
@@ -518,6 +522,28 @@ def assign_local_byte():
     offset = get_operand()
     
     memory[current_frame + offset] = memory[stack_pointer - 1]
+    
+    stack_pointer -= 1
+
+def assign_global():
+
+    global stack_base, stack_pointer
+    offset = get_operand()
+    size = get_operand()
+    
+    i = 0
+    while i < size:
+        memory[stack_base + offset + i] = memory[stack_pointer - size + i]
+        i += 1
+    
+    stack_pointer -= size
+
+def assign_global_byte():
+
+    global stack_base, stack_pointer
+    offset = get_operand()
+
+    memory[stack_base + offset] = memory[stack_pointer - 1]
     
     stack_pointer -= 1
 
@@ -780,8 +806,11 @@ lookup = {
     opcodes.load_local: load_local,
     opcodes.load_local_byte: load_local_byte,
     opcodes.load_global: load_global,
+    opcodes.load_global_byte: load_global_byte,
     opcodes.assign_local: assign_local,
     opcodes.assign_local_byte: assign_local_byte,
+    opcodes.assign_global: assign_global,
+    opcodes.assign_global_byte: assign_global_byte,
     opcodes.function_return: function_return,
     opcodes.function_call: function_call,
     opcodes.load_current_frame_address: load_current_frame_address,

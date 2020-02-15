@@ -675,8 +675,7 @@ def parse_definition(stream):
     
     if token == "def":
     
-        # Transfer the list of local variables to the global list.
-        global_variables[:] = local_variables
+        # Clear the list of local variables.
         local_variables[:] = []
         
         token = get_token(stream)
@@ -773,8 +772,9 @@ def parse_definition(stream):
         # types beforehand.
         generator.code[enter_address + 3] = total_var_size
         
-        # Restore the list of local variables.
-        local_variables[:] = global_variables
+        # Clear the list of local variables.
+        local_variables[:] = []
+        
         return True
     
     else:
@@ -973,7 +973,6 @@ def parse_include(stream):
     state = tokeniser.save_state()
     print "Including", file_name
     parse_program_definitions(f)
-    print "Included", file_name
     tokeniser.restore_state(state)
     
     return True    
@@ -1188,8 +1187,9 @@ def parse_program(stream, base_address):
     
     generator.generate_end()
     
-    # Fill in the size of the local variable space.
-    generator.code[start_address + 1] = total_variable_size(local_variables)
+    # Fill in the size of the global variable space.
+    generator.code[start_address + 1] = total_variable_size(global_variables)
+    print "Global variable space size:", total_variable_size(global_variables)
     
     return generator.base_address + start_address
 
@@ -1260,38 +1260,50 @@ def parse_separator(stream):
 
 def parse_statement(stream):
 
-    '<statement> = [<name> "="] <expression> <separator>'
+    '<statement> = [["global" <name> "="] <expression> <separator>'
     
     global current_size, current_element_size, current_array
     
     top = len(used)
     address = len(generator.code)
     
-    assignment = None
+    assignment = "undefined"
     
     # The statement may be an assignment.
     var_token = get_token(stream)
     
+    if var_token == "global":
+        assignment = "global"
+        var_token = get_token(stream)
+    
     if is_variable(var_token):
     
-        # If the variable is already defined and has an array type then check
-        # for an index.
-        index = find_local_variable(var_token)
+        if assignment != "global" and in_function:
         
-        if index != -1:
-            # Local variable
-            name, size, element_size, array = local_variables[index]
-            offset = local_variable_offset(index)
+            # If the variable is already defined and has an array type then check
+            # for an index.
+            index = find_local_variable(var_token)
             
-            if array and parse_array_index(stream):
-                # Record the size of the array index.
-                index_size = current_size
-                assignment = "local array"
+            if index != -1:
+                # Local variable
+                name, size, element_size, array = local_variables[index]
+                offset = local_variable_offset(index)
+                
+                if array and parse_array_index(stream):
+                    # Record the size of the array index.
+                    index_size = current_size
+                    assignment = "local array"
+                else:
+                    assignment = "local"
             else:
-                assignment = "local"
-        else:
+                # Currently undefined variable
+                assignment = "undefined"
+        
+        if assignment in "global" or assignment == "undefined":
+        
             # Global variable
             index = find_global_variable(var_token)
+            
             if index != -1:
                 name, size, element_size, array = global_variables[index]
                 offset = global_variable_offset(index)
@@ -1302,8 +1314,12 @@ def parse_statement(stream):
                     assignment = "global array"
                 else:
                     assignment = "global"
+            
+            elif assignment == "global" or not in_function:
+                # Only allow creation of new global variables outside functions
+                # or when the "global" keyword is used within functions.
+                assignment = "global undefined"
             else:
-                # Currently undefined variable
                 assignment = "undefined"
         
         # Check for the assignment operator.
@@ -1360,13 +1376,23 @@ def parse_statement(stream):
         if current_size == 0:
             raise SyntaxError, "No value to assign at line %i." % tokeniser.line
         
-        debug_print("define", var_token)
-        ### We need a way to determine if the variable is local or global.
         local_variables.append((var_token, current_size, current_element_size,
                                 current_array))
         index = find_local_variable(var_token)
         offset = local_variable_offset(index)
         generator.generate_assign_local(offset, current_size)
+        debug_print("define local", var_token, offset, current_size)
+    
+    elif assignment == "global undefined":
+        if current_size == 0:
+            raise SyntaxError, "No value to assign at line %i." % tokeniser.line
+        
+        global_variables.append((var_token, current_size, current_element_size,
+                                 current_array))
+        index = find_global_variable(var_token)
+        offset = global_variable_offset(index)
+        generator.generate_assign_global(offset, current_size)
+        debug_print("define global", var_token, offset, current_size)
     
     else:
         # Discard the resulting value on the top of the stack.
