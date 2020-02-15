@@ -1,0 +1,5 @@
+include "<print_dec.ind>"
+
+a = 1
+print_dec(a)
+print_dec(a)

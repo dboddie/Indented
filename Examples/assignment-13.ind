@@ -1,0 +1,15 @@
+include "<print_dec.ind>"
+
+def assign x (byte)
+
+    # This assigns to a local variable, not the global one.
+    global a = x
+
+# Define a global variable to modify.
+a = 123
+print_dec(a)
+emit(13)
+emit(10)
+
+assign(42)
+print_dec(a)    # This should print 42.

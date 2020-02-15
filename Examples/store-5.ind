@@ -1,0 +1,5 @@
+v = 0x00
+
+while v < 0xff
+    v = v + 0x01
+    _store(v, 0x6000)

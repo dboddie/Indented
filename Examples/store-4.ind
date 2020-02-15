@@ -1,0 +1,7 @@
+def cls
+    addr = 0x6000
+    while addr != 0x8000
+        _store(0xaa55aa55aa55aa55, addr)
+        addr = addr + 0x0008
+
+cls()

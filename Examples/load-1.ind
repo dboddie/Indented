@@ -1,0 +1,7 @@
+a = 0x6000
+
+while a < 0x63c0
+    v = _load(8, a)
+    v = v ^ 0xffffffffffffffff
+    _store(v, a)
+    a = a + 0x0008
